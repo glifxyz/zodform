@@ -20,7 +20,6 @@ rush update
 
 - `@zodform/core` - the logic for rendering components from a schema
 - `@zodform/docs` - the docs site
-- `@zodform/mantine` - a [Mantine](https://mantine.dev/) theme for the components
 
 Most of the development is usually done in `@zodform/core`.
 Navigate to `apps/core` and run:

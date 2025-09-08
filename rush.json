@@ -334,11 +334,6 @@
       "shouldPublish": true
     },
     {
-      "packageName": "@zodform/mantine",
-      "projectFolder": "apps/mantine",
-      "shouldPublish": true
-    },
-    {
       "packageName": "@zodform/docs",
       "projectFolder": "apps/docs",
       "shouldPublish": false

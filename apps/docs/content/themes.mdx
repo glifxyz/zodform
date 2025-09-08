@@ -44,28 +44,3 @@ function Component() {
 }
 ```
 
-## Mantine
-
-The `@zodform/mantine` package provides components built using [Mantine](https://mantine.dev/).
-
-### Installation
-
-We need to install the `@zodform/mantine` package and its peer dependencies.
-
-```bash
-pnpm i @zodform/mantine @mantine/core @mantine/hooks @emotion/react @babel/core
-```
-
-### Usage
-
-```tsx
-import { Form, FormSchema, IFormProps } from '@zodform/core';
-import { components } from '@zodform/mantine';
-
-export function MantineForm<Schema extends FormSchema>(props: Omit<IFormProps<Schema>, 'components'>) {
-  return <Form {...props} components={components} />;
-}
-```
-
-The mantine theme is just a predefined `components` object, much like the one
-we defined in the [Custom Components](#custom-components) section.
