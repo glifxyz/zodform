@@ -90,16 +90,25 @@ type ComponentName = string;
 type ErrorsMap = Record<ComponentName, zod.ZodIssue[]>;
 export type ComponentPath = (string | number)[];
 
-type ChangeOp = 'update' | 'remove';
+type ChangeOp = 'update' | 'remove' | 'array-add' | 'array-remove';
 type ChangePayload =
   | {
+      op: Extract<ChangeOp, 'update'>;
       value: any;
       path: ComponentPath;
-      op: Extract<ChangeOp, 'update'>;
     }
   | {
-      path: ComponentPath;
       op: Extract<ChangeOp, 'remove'>;
+      path: ComponentPath;
+    }
+  | {
+      op: Extract<ChangeOp, 'array-add'>;
+      value: any;
+      path: ComponentPath;
+    }
+  | {
+      op: Extract<ChangeOp, 'array-remove'>;
+      path: ComponentPath;
     };
 type OnChange = (data: ChangePayload) => void;
 
@@ -108,7 +117,6 @@ const [useInternalFormContext, FormContextProvider] = createContext<{
   components?: Required<IFormProps<any>>['components'];
 
   onChange: OnChange;
-  onArrayRemove: (path: ComponentPath) => void;
   conds: FormConds;
 }>();
 
@@ -544,7 +552,7 @@ const ZodArrayMultiChoiceComponent = memo(function ZodArrayMultiChoiceComponent(
 });
 
 function ZodArrayComponent(props: IZodArrayComponentProps) {
-  const { onChange, onArrayRemove, components } = useInternalFormContext();
+  const { onChange, components } = useInternalFormContext();
   const { errors, isVisible } = useComponent(props.name);
 
   const { schema, name, value, uiSchema } = props;
@@ -573,11 +581,14 @@ function ZodArrayComponent(props: IZodArrayComponentProps) {
       description={uiProps.description ?? zodSchemaDescription(schema)}
       title={uiProps.title ?? name}
       onRemove={(index) => {
-        onArrayRemove(componentNameDeserialize(`${name}[${index}]`));
+        onChange({
+          op: 'array-remove',
+          path: componentNameDeserialize(`${name}[${index}]`)
+        });
       }}
       onAdd={(newValue: unknown) => {
         onChange({
-          op: 'update',
+          op: 'array-add',
           path: componentNameDeserialize(`${name}[${value?.length ?? 0}]`),
           value: newValue ?? formDefaultValueFromSchema(arraySchemaElement)
         });
@@ -1132,19 +1143,25 @@ export type FormUiSchema<Schema extends FormSchema> = Partial<UiSchema<Schema, z
 
 export type FormValue<Schema extends FormSchema> = PartialDeep<zod.infer<Schema>>;
 export type FormSchema = AnyZodObject | ZodDiscriminatedUnion<any, any> | ZodEffects<any>;
-export type FormOnChange<Schema extends FormSchema> = (
+
+type UncontrolledFormOnChange<Schema extends FormSchema> = (changeEvent: {
+  change: ChangePayload;
+  patch: FormValue<Schema>;
+  formData: FormValue<Schema>;
+}) => void;
+
+type ControlledFormOnChange<Schema extends FormSchema> = (
   updater: (oldValue: FormValue<Schema>) => FormValue<Schema>
 ) => void;
 
 type FormChildren = (props: { errors: zod.ZodIssue[] }) => ReactNode;
 type FormConds = Record<string, CondResult>;
 
-export interface IFormProps<Schema extends FormSchema> {
+type IBaseFormProps<Schema extends FormSchema> = {
   schema: Schema;
   uiSchema?: FormUiSchema<Schema>;
   onSubmit?: (value: zod.infer<Schema>) => void;
-  onChange?: FormOnChange<Schema>;
-  value?: FormValue<Schema>;
+
   defaultValues?: zod.infer<Schema>;
   components?: {
     string?: (props: IStringDefaultProps) => ReactNode;
@@ -1163,7 +1180,19 @@ export interface IFormProps<Schema extends FormSchema> {
   className?: string;
 
   showSubmitButton?: boolean;
-}
+};
+
+type IUncontrolledFormProps<Schema extends FormSchema> = {
+  onChange?: UncontrolledFormOnChange<Schema>;
+  value?: never;
+} & IBaseFormProps<Schema>;
+
+type IControlledFormProps<Schema extends FormSchema> = {
+  onChange?: ControlledFormOnChange<Schema>;
+  value: FormValue<Schema>;
+} & IBaseFormProps<Schema>;
+
+type IFormProps<Schema extends FormSchema> = IUncontrolledFormProps<Schema> | IControlledFormProps<Schema>;
 
 /**
  * Zod may wrap the schema in an effects
@@ -1230,13 +1259,6 @@ type IFormReducerAction =
       }>;
     }
   | {
-      type: 'arrayRemove';
-      payload: IFormReducerBasePayload<{
-        path: ComponentPath;
-        liveValidate?: boolean;
-      }>;
-    }
-  | {
       type: 'onError';
       payload: {
         errors: ErrorsMap;
@@ -1294,32 +1316,28 @@ const STABLE_NO_ERRORS = {};
 
 function formNextValue(prev: any, event: ChangePayload): any {
   return produce(prev, (draft: any) => {
-    if (event.op === 'update') {
-      set(draft, event.path, event.value);
-    } else {
-      unset(draft, event.path, {
-        arrayBehavior: 'setToUndefined'
-      });
+    switch (event.op) {
+      case 'update':
+        set(draft, event.path, event.value);
+        break;
+      case 'remove':
+        unset(draft, event.path, {
+          arrayBehavior: 'setToUndefined'
+        });
+        break;
+      case 'array-add':
+        set(draft, event.path, event.value);
+        break;
+      case 'array-remove':
+        unset(draft, event.path, {
+          arrayBehavior: 'delete'
+        });
+        break;
     }
   });
 }
 
-function formArrayRemove(prev: any, path: ComponentPath): any {
-  return produce(prev, (draft: any) => {
-    unset(draft, path, {
-      arrayBehavior: 'delete'
-    });
-  });
-}
-
-function formReducer(
-  state: IFormReducerState = {
-    formData: {},
-    conds: {},
-    errors: STABLE_NO_ERRORS
-  },
-  action: IFormReducerAction
-) {
+function formReducer(state: IFormReducerState, action: IFormReducerAction) {
   if (action.type === 'onChange') {
     const { uiSchema, event, liveValidate } = action.payload;
 
@@ -1330,18 +1348,6 @@ function formReducer(
     return {
       ...state,
       conds: resolveNextFormConds(nextFormData, uiSchema),
-      formData: nextFormData,
-      errors: result ? (result.isValid ? STABLE_NO_ERRORS : result.errors) : state.errors
-    };
-  }
-
-  if (action.type === 'arrayRemove') {
-    const nextFormData = formArrayRemove(state.formData, action.payload.path);
-
-    const result = action.payload.liveValidate ? validate(nextFormData, action.payload.schema) : undefined;
-
-    return {
-      ...state,
       formData: nextFormData,
       errors: result ? (result.isValid ? STABLE_NO_ERRORS : result.errors) : state.errors
     };
@@ -1372,29 +1378,20 @@ function formReducer(
       errors: result ? (result.isValid ? STABLE_NO_ERRORS : result.errors) : state.errors
     };
   }
+
+  throw new Error(`Unknown action type: ${(action as any).type}`);
 }
 
 function flattenErrorsToZodIssues(errors: ErrorsMap): zod.ZodIssue[] {
   return flatten(values(errors));
 }
 
-export function Form<Schema extends FormSchema>(props: IFormProps<Schema>) {
-  useUncontrolledToControlledWarning(props.value);
-
-  if (isNil(props.value)) {
-    return <UncontrolledForm {...props} />;
-  }
-
-  return <ControlledForm {...props} />;
-}
-
-function UncontrolledForm<Schema extends FormSchema>({
+export function UncontrolledForm<Schema extends FormSchema>({
   schema,
   uiSchema,
 
   onChange,
   onSubmit,
-  value,
   defaultValues,
 
   components,
@@ -1406,7 +1403,7 @@ function UncontrolledForm<Schema extends FormSchema>({
   className,
 
   showSubmitButton = false
-}: IFormProps<Schema>) {
+}: IUncontrolledFormProps<Schema>) {
   const objectSchema = useMemo(() => resolveObjectSchema(schema), [schema]);
 
   const [state, dispatch] = useReducer(formReducer, undefined, () => {
@@ -1418,7 +1415,7 @@ function UncontrolledForm<Schema extends FormSchema>({
       errors: STABLE_NO_ERRORS
     };
   });
-  const { formData, conds, errors } = state!;
+  const { formData, conds, errors } = state;
 
   const handleSubmit = useCallback(
     (value: typeof formData) => {
@@ -1453,25 +1450,13 @@ function UncontrolledForm<Schema extends FormSchema>({
         }
       });
 
-      onChange?.((oldValue) => formNextValue(oldValue, event));
-    },
-    [liveValidate, onChange, schema, uiSchema]
-  );
-
-  const onArrayRemove = useCallback(
-    (path: ComponentPath) => {
-      dispatch({
-        type: 'arrayRemove',
-        payload: {
-          path,
-          schema,
-          liveValidate
-        }
+      onChange?.({
+        change: event,
+        patch: formNextValue({}, event),
+        formData: formNextValue(formData, event)
       });
-
-      onChange?.((oldValue) => formArrayRemove(oldValue, path));
     },
-    [liveValidate, onChange, schema]
+    [formData, liveValidate, onChange, schema, uiSchema]
   );
 
   const updateForm = useCallback(
@@ -1509,12 +1494,11 @@ function UncontrolledForm<Schema extends FormSchema>({
           conds,
           errors,
           onChange: handleChange,
-          components,
-          onArrayRemove
+          components
         }}
       >
         <FormContext.Provider value={{ value: formData, update: updateForm }}>
-          <ZodAnyComponent uiSchema={uiSchema} value={value ?? formData} schema={objectSchema} />
+          <ZodAnyComponent uiSchema={uiSchema} value={formData} schema={objectSchema} />
         </FormContext.Provider>
       </FormContextProvider>
 
@@ -1525,7 +1509,7 @@ function UncontrolledForm<Schema extends FormSchema>({
   );
 }
 
-function ControlledForm<Schema extends FormSchema>({
+export function ControlledForm<Schema extends FormSchema>({
   schema,
   value,
   components,
@@ -1537,7 +1521,7 @@ function ControlledForm<Schema extends FormSchema>({
   children,
   onSubmit,
   className
-}: IFormProps<Schema>) {
+}: IControlledFormProps<Schema>) {
   const [errors, setErrors] = useState<ErrorsMap>(STABLE_NO_ERRORS);
   const [conds, setConds] = useState<FormConds>(resolveNextFormConds(value, uiSchema ?? {}));
 
@@ -1567,13 +1551,6 @@ function ControlledForm<Schema extends FormSchema>({
   const handleChange: OnChange = useCallback(
     (event) => {
       onChange?.((oldValue) => formNextValue(oldValue, event));
-    },
-    [onChange]
-  );
-
-  const onArrayRemove = useCallback(
-    (path: ComponentPath) => {
-      onChange?.((oldValue) => formArrayRemove(oldValue, path));
     },
     [onChange]
   );
@@ -1615,8 +1592,7 @@ function ControlledForm<Schema extends FormSchema>({
           conds,
           errors,
           onChange: handleChange,
-          components,
-          onArrayRemove
+          components
         }}
       >
         <FormContext.Provider value={{ value, update: handleUpdate }}>
@@ -1631,4 +1607,11 @@ function ControlledForm<Schema extends FormSchema>({
       )}
     </form>
   );
+}
+
+// By default we'll export an uncontrolled form, with a warning if value is passed in
+export function Form<Schema extends FormSchema>(props: IUncontrolledFormProps<Schema>) {
+  useUncontrolledToControlledWarning((props as any).value);
+
+  return <UncontrolledForm {...props} />;
 }

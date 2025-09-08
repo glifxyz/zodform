@@ -1,6 +1,8 @@
 /* eslint-disable react-hooks/rules-of-hooks -- false positive */
 
 import type { Meta, StoryObj } from '@storybook/react-vite';
+import { fn } from 'storybook/test';
+import { action } from 'storybook/actions';
 import { useState } from 'react';
 import { z } from 'zod';
 import { EnumDefault } from '../components/default/enum-default';
@@ -16,6 +18,83 @@ const meta: Meta<typeof Form> = {
 export default meta;
 
 type Story = StoryObj<typeof Form>;
+
+export const SimpleArray: Story = {
+  render: () => {
+    const [liveValidate, setLiveValidate] = useState(false);
+
+    const [schema] = useState(() =>
+      z.object({
+        people: z
+          .array(
+            z.object({
+              firstName: z.string().min(1, 'First name is required'),
+              lastName: z.string().min(1, 'Last name is required')
+            })
+          )
+          .min(1, 'Please add at least one person')
+          .optional()
+      })
+    );
+
+    const [uiSchema] = useState<FormUiSchema<typeof schema>>(() => ({
+      people: {
+        element: {
+          ui: {
+            Layout: ({ children, value }) => {
+              return (
+                <div
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 1
+                  }}
+                >
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                    {children.firstName} {children.lastName}
+                  </div>
+                </div>
+              );
+            }
+          },
+          firstName: {
+            label: 'First name'
+          },
+          lastName: {
+            label: 'Last name'
+          }
+        }
+      }
+    }));
+
+    return (
+      <div
+        style={{
+          maxWidth: 500,
+          margin: 'auto'
+        }}
+      >
+        <Form
+          liveValidate={liveValidate}
+          schema={schema}
+          uiSchema={uiSchema}
+          onErrorsChange={(errors) => {
+            const isInvalid = Object.keys(errors).length > 0;
+            setLiveValidate(isInvalid);
+
+            action('onErrorsChange')(errors);
+          }}
+          onSubmit={(values) => action('submit')(values)}
+          onChange={(change) => action('change')(change)}
+        >
+          {() => {
+            return <button type="submit">Submit</button>;
+          }}
+        </Form>
+      </div>
+    );
+  }
+};
 
 export const ConferenceRegistration: Story = {
   render: () => {
@@ -147,14 +226,17 @@ export const ConferenceRegistration: Story = {
       >
         <Form
           liveValidate={liveValidate}
-          onSubmit={console.log}
           title={<h1>Conference registration</h1>}
           schema={schema}
           uiSchema={uiSchema}
           onErrorsChange={(errors) => {
             const isInvalid = Object.keys(errors).length > 0;
             setLiveValidate(isInvalid);
+
+            action('errorsChange')(errors);
           }}
+          onSubmit={(values) => action('submit')(values)}
+          onChange={(change) => action('change')(change)}
         >
           {() => {
             return <button type="submit">Submit</button>;
@@ -200,7 +282,8 @@ export const Register: Story = {
           }}
           liveValidate={false}
           schema={schema}
-          onSubmit={console.log}
+          onSubmit={(values) => console.log('submit')}
+          onChange={(updater) => console.log('change')}
         >
           {({ errors }) => {
             return (

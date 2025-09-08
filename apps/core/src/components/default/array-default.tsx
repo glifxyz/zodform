@@ -21,7 +21,7 @@ export function ArrayDefault({ children, onAdd, onRemove, title, description }: 
         </div>
       ))}
 
-      <button type="button" onClick={onAdd}>
+      <button type="button" onClick={() => onAdd()}>
         +
       </button>
 
