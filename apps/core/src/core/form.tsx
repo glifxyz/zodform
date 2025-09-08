@@ -1,42 +1,86 @@
-import type { AnyZodObject, ZodEffects, ZodFirstPartySchemaTypes, ZodString } from 'zod';
-import * as zod from 'zod';
-import * as R from 'remeda';
-import React from 'react';
+import { cloneDeep, flatten, groupBy, head, isNil, noop, omit, set, values } from 'lodash-es';
+import {
+  memo,
+  createContext as reactCreateContext,
+  type ReactNode,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useReducer,
+  useState
+} from 'react';
+import { type PartialDeep } from 'type-fest';
+import type * as zod from 'zod';
+import type {
+  AnyZodObject,
+  ZodArray,
+  ZodBoolean,
+  ZodDate,
+  ZodDefault,
+  ZodDiscriminatedUnion,
+  ZodDiscriminatedUnionOption,
+  ZodEffects,
+  ZodEnum,
+  ZodFirstPartySchemaTypes,
+  ZodLiteral,
+  ZodNumber,
+  ZodObject,
+  ZodOptional,
+  ZodRawShape,
+  ZodString
+} from 'zod';
+import { z } from 'zod';
+import { ArrayDefault, type IArrayDefaultProps } from '../components/default/array-default';
+import { BooleanDefault, type IBooleanDefaultProps } from '../components/default/boolean-default';
+import { DateDefault, type IDateDefaultProps } from '../components/default/date-default';
+import { EnumDefault, type IEnumDefaultProps } from '../components/default/enum-default';
+import {
+  type IMultiChoiceDefaultProps,
+  MultiChoiceDefault
+} from '../components/default/multi-choice-default';
+import { type INumberDefaultProps, NumberDefault } from '../components/default/number-default';
+import { type IObjectDefaultProps, ObjectDefault } from '../components/default/object-default';
+import { type IStringDefaultProps, StringDefault } from '../components/default/string-default';
+import { type IComponentProps } from '../components/types';
+import { createContext } from '../utils/create-context';
+import { unset } from '../utils/unset';
+import { useUncontrolledToControlledWarning } from '../utils/use-uncontrolled-to-controlled-warning';
 import { componentNameDeserialize, componentNameSerialize } from './component-name-deserialize';
-import { IStringDefaultProps, StringDefault } from '../components/default/string-default';
-import { EnumDefault, IEnumDefaultProps } from '../components/default/enum-default';
-import { INumberDefaultProps, NumberDefault } from '../components/default/number-default';
-import { ArrayDefault, IArrayDefaultProps } from '../components/default/array-default';
-import { BooleanDefault, IBooleanDefaultProps } from '../components/default/boolean-default';
-import set from 'lodash.set';
-import produce from 'immer';
+import { type ExtractSchemaFromEffects } from './extract-schema-from-effects';
+import { formDefaultValueFromSchema } from './form-default-value-from-schema';
+import { mergeZodOuterInnerType } from './merge-zod-outer-inner-type';
+import { type CondResult, resolveUiSchemaConds } from './resolve-ui-schema-conds';
 import {
   isZodArray,
   isZodBoolean,
   isZodDate,
   isZodDefault,
+  isZodDiscriminatedUnion,
   isZodEffects,
   isZodEnum,
+  isZodLiteral,
   isZodNumber,
   isZodObject,
   isZodOptional,
   isZodString,
-  ZodAnyArray,
-  ZodAnyEnum
+  type ZodAnyArray,
+  type ZodAnyEnum
 } from './schema-type-resolvers';
-import { formDefaultValueFromSchema } from './form-default-value-from-schema';
-import { useUncontrolledToControlledWarning } from '../utils/use-uncontrolled-to-controlled-warning';
-import { unset } from '../utils/unset';
-import { IObjectDefaultProps, ObjectDefault } from '../components/default/object-default';
-import { IMultiChoiceDefaultProps, MultiChoiceDefault } from '../components/default/multi-choice-default';
-import { PartialDeep } from 'type-fest';
-import { CondResult, resolveUiSchemaConds } from './resolve-ui-schema-conds';
-import { createContext } from '../utils/create-context';
-import { DateDefault, IDateDefaultProps } from '../components/default/date-default';
-import { mergeZodOuterInnerType } from './merge-zod-outer-inner-type';
-import { ZodArray, ZodBoolean, ZodDate, ZodDefault, ZodEnum, ZodNumber, ZodObject, ZodOptional } from 'zod';
-import { ExtractSchemaFromEffects } from './extract-schema-from-effects';
-import { IComponentProps } from '../components/types';
+
+/**
+ * Simple implementation of Immer's produce function using lodash
+ */
+export function produce<T>(baseState: T, recipe: (draft: T) => void | T): T {
+  // Create a deep copy of the base state
+  const draft = cloneDeep(baseState);
+
+  // Apply the recipe to the draft
+  const result = recipe(draft);
+
+  // If recipe returns something, use that; otherwise use the mutated draft
+  return result !== undefined ? result : draft;
+}
 
 function zodSchemaDescription(schema: ZodFirstPartySchemaTypes) {
   return schema._def.description;
@@ -68,19 +112,19 @@ const [useInternalFormContext, FormContextProvider] = createContext<{
   conds: FormConds;
 }>();
 
-const FormContext = React.createContext<{
+const FormContext = reactCreateContext<{
   value: any;
   update: (updater: (value: any) => void) => void;
 }>({
   value: {},
-  update: R.noop
+  update: noop
 });
 
 export function useForm<Schema extends FormSchema>(): {
   value: FormValue<Schema>;
   update: (updater: (value: FormValue<Schema>) => void) => void;
 } {
-  return React.useContext(FormContext);
+  return useContext(FormContext);
 }
 
 function isComponentVisible(name: string, conds: FormConds): boolean {
@@ -93,7 +137,7 @@ function useComponent(name: string): {
 } {
   const { errors, conds } = useInternalFormContext();
 
-  return React.useMemo(() => {
+  return useMemo(() => {
     return {
       errors: errors?.[name] ?? [],
       isVisible: isComponentVisible(name, conds)
@@ -107,15 +151,17 @@ function useComponent(name: string): {
  * */
 function getLeafPropsFromUiSchema(
   // We don't care about the type of "component", since we'll omit it anyway
-  uiProps?: Omit<UiPropertiesBaseNew<ZodFirstPartySchemaTypes, any>, 'Component'> & { Component?: any }
+  uiProps?: Omit<UiPropertiesBaseNew<ZodFirstPartySchemaTypes, any>, 'Component'> & {
+    Component?: any;
+  }
 ) {
-  return R.omit(uiProps ?? {}, ['Component', 'cond']);
+  return omit(uiProps ?? {}, ['Component', 'cond']);
 }
 
 interface IZodLeafComponentProps<Schema extends ZodFirstPartySchemaTypes, Value> {
   schema: Schema;
   name: string;
-  description?: React.ReactNode;
+  description?: ReactNode;
   isRequired: boolean;
   value?: Value;
 }
@@ -127,10 +173,10 @@ interface IZodInnerComponentProps {
 }
 
 interface IZodStringComponentProps extends IZodLeafComponentProps<ZodString, string> {
-  uiSchema?: UiPropertiesBaseNew<ZodString, any>;
+  uiSchema?: UiPropertiesString<any>;
 }
 
-const ZodStringComponentInner = React.memo(function ZodStringComponentInner({
+const ZodStringComponentInner = memo(function ZodStringComponentInner({
   name,
   schema,
   value,
@@ -141,11 +187,12 @@ const ZodStringComponentInner = React.memo(function ZodStringComponentInner({
   components,
   errorMessage
 }: IZodStringComponentProps & IZodInnerComponentProps) {
-  const handleChange = React.useCallback(
+  const handleChange = useCallback(
     function handleChange(value = '') {
+      // TODO: decide if we want to remove empty strings or not?
+      // it should be up to the consumer to decide, otherwise they just get an empty object as the diff
       const isEmpty = value === '';
-
-      if (isEmpty) {
+      if (isEmpty && !isRequired) {
         return onChange({
           op: 'remove',
           path: componentNameDeserialize(name)
@@ -158,7 +205,7 @@ const ZodStringComponentInner = React.memo(function ZodStringComponentInner({
         path: componentNameDeserialize(name)
       });
     },
-    [name, onChange]
+    [name, isRequired, onChange]
   );
 
   const Component = uiSchema?.Component ?? components?.string ?? StringDefault;
@@ -172,6 +219,7 @@ const ZodStringComponentInner = React.memo(function ZodStringComponentInner({
       description={zodSchemaDescription(schema)}
       errorMessage={errorMessage}
       isRequired={isRequired}
+      placeholder={uiSchema?.placeholder}
       {...getLeafPropsFromUiSchema(uiSchema)}
     />
   );
@@ -188,7 +236,7 @@ function ZodStringComponent(props: IZodStringComponentProps) {
   return (
     <ZodStringComponentInner
       {...props}
-      errorMessage={R.first(errors)?.message}
+      errorMessage={head(errors)?.message}
       onChange={onChange}
       components={components}
     />
@@ -199,7 +247,7 @@ interface IZodEnumComponentProps extends IZodLeafComponentProps<ZodAnyEnum, stri
   uiSchema?: UiPropertiesEnum<any, any>;
 }
 
-const ZodEnumComponentInner = React.memo(function ZodEnumComponentInner({
+const ZodEnumComponentInner = memo(function ZodEnumComponentInner({
   schema,
   name,
   value = '',
@@ -210,7 +258,7 @@ const ZodEnumComponentInner = React.memo(function ZodEnumComponentInner({
   onChange,
   errorMessage
 }: IZodEnumComponentProps & IZodInnerComponentProps) {
-  const handleChange = React.useCallback(
+  const handleChange = useCallback(
     function handleChange(value = '') {
       const isEmpty = value === '';
 
@@ -260,7 +308,7 @@ function ZodEnumComponent(props: IZodEnumComponentProps) {
       {...props}
       components={components}
       onChange={onChange}
-      errorMessage={R.first(errors)?.message}
+      errorMessage={head(errors)?.message}
     />
   );
 }
@@ -269,7 +317,7 @@ interface IZodNumberComponentProps extends IZodLeafComponentProps<zod.ZodNumber,
   uiSchema?: UiPropertiesBaseNew<ZodNumber, any>;
 }
 
-const ZodNumberComponentInner = React.memo(function ZodNumberComponentInner({
+const ZodNumberComponentInner = memo(function ZodNumberComponentInner({
   name,
   schema,
   value,
@@ -280,9 +328,9 @@ const ZodNumberComponentInner = React.memo(function ZodNumberComponentInner({
   components,
   errorMessage
 }: IZodNumberComponentProps & IZodInnerComponentProps) {
-  const handleChange = React.useCallback(
+  const handleChange = useCallback(
     function handleChange(value?: number) {
-      const isEmpty = R.isNil(value) || Number.isNaN(value);
+      const isEmpty = isNil(value) || Number.isNaN(value);
 
       if (isEmpty) {
         return onChange({
@@ -311,8 +359,9 @@ const ZodNumberComponentInner = React.memo(function ZodNumberComponentInner({
       description={zodSchemaDescription(schema)}
       errorMessage={errorMessage}
       isRequired={isRequired}
-      min={schema.minValue ?? undefined}
-      max={schema.maxValue ?? undefined}
+      min={schema.minValue ?? schema._def.checks.find((c) => c.kind === 'min')?.value ?? undefined}
+      max={schema.maxValue ?? schema._def.checks.find((c) => c.kind === 'max')?.value ?? undefined}
+      step={schema._def.checks.find((c) => c.kind === 'multipleOf')?.value ?? undefined}
       {...getLeafPropsFromUiSchema(uiSchema)}
     />
   );
@@ -329,7 +378,7 @@ function ZodNumberComponent(props: IZodNumberComponentProps) {
   return (
     <ZodNumberComponentInner
       {...props}
-      errorMessage={R.first(errors)?.message}
+      errorMessage={head(errors)?.message}
       onChange={onChange}
       components={components}
     />
@@ -339,7 +388,7 @@ interface IZodBooleanComponentProps extends IZodLeafComponentProps<zod.ZodBoolea
   uiSchema?: UiPropertiesBaseNew<ZodBoolean, any>;
 }
 
-const ZodBooleanComponentInner = React.memo(function ZodBooleanComponentInner({
+const ZodBooleanComponentInner = memo(function ZodBooleanComponentInner({
   name,
   schema,
   value,
@@ -350,7 +399,7 @@ const ZodBooleanComponentInner = React.memo(function ZodBooleanComponentInner({
   components,
   errorMessage
 }: IZodBooleanComponentProps & IZodInnerComponentProps) {
-  const handleChange = React.useCallback(
+  const handleChange = useCallback(
     function handleChange(value: boolean) {
       onChange({
         op: 'update',
@@ -389,7 +438,7 @@ function ZodBooleanComponent(props: IZodBooleanComponentProps) {
     <ZodBooleanComponentInner
       {...props}
       components={components}
-      errorMessage={R.first(errors)?.message}
+      errorMessage={head(errors)?.message}
       onChange={onChange}
     />
   );
@@ -399,7 +448,7 @@ interface IZodDateComponentProps extends IZodLeafComponentProps<zod.ZodDate, Dat
   uiSchema?: UiPropertiesBaseNew<ZodDate, any>;
 }
 
-const ZodDateComponentInner = React.memo(function ZodDateComponentInner({
+const ZodDateComponentInner = memo(function ZodDateComponentInner({
   name,
   schema,
   value,
@@ -410,7 +459,7 @@ const ZodDateComponentInner = React.memo(function ZodDateComponentInner({
   components,
   errorMessage
 }: IZodDateComponentProps & IZodInnerComponentProps) {
-  const handleChange = React.useCallback(
+  const handleChange = useCallback(
     function handleChange(value: Date | undefined) {
       onChange({
         op: 'update',
@@ -449,7 +498,7 @@ function ZodDateComponent(props: IZodDateComponentProps) {
     <ZodDateComponentInner
       {...props}
       components={components}
-      errorMessage={R.first(errors)?.message}
+      errorMessage={head(errors)?.message}
       onChange={onChange}
     />
   );
@@ -462,7 +511,7 @@ interface IZodArrayComponentProps extends IZodLeafComponentProps<ZodAnyArray, an
   uiSchema?: UiPropertiesArray<any, any> | UiPropertiesMultiChoice<ZodEnum<any>, any>;
 }
 
-const ZodArrayMultiChoiceComponent = React.memo(function ZodArrayMultiChoiceComponent({
+const ZodArrayMultiChoiceComponent = memo(function ZodArrayMultiChoiceComponent({
   schema,
   name,
   value = [],
@@ -511,7 +560,7 @@ function ZodArrayComponent(props: IZodArrayComponentProps) {
         {...props}
         onChange={onChange}
         components={components}
-        errorMessage={R.first(errors)?.message}
+        errorMessage={head(errors)?.message}
       />
     );
   }
@@ -521,16 +570,16 @@ function ZodArrayComponent(props: IZodArrayComponentProps) {
 
   return (
     <Component
-      description={zodSchemaDescription(schema) ?? uiProps.description}
-      title={uiProps.title}
+      description={uiProps.description ?? zodSchemaDescription(schema)}
+      title={uiProps.title ?? name}
       onRemove={(index) => {
         onArrayRemove(componentNameDeserialize(`${name}[${index}]`));
       }}
-      onAdd={() => {
+      onAdd={(newValue: unknown) => {
         onChange({
           op: 'update',
           path: componentNameDeserialize(`${name}[${value?.length ?? 0}]`),
-          value: formDefaultValueFromSchema(arraySchemaElement)
+          value: newValue ?? formDefaultValueFromSchema(arraySchemaElement)
         });
       }}
     >
@@ -564,7 +613,7 @@ function ZodObjectComponent({
   const { isVisible } = useComponent(name ?? '');
   const { components, onChange } = useInternalFormContext();
 
-  const handleChange = React.useCallback(
+  const handleChange = useCallback(
     (updater: (old: any) => any) => {
       if (name) {
         onChange({
@@ -577,7 +626,7 @@ function ZodObjectComponent({
     [name, onChange, value]
   );
 
-  const children = (function () {
+  const formChildren = (function () {
     const result = Object.entries(schema._def.shape()).map(([thisName, thisSchema]) => {
       const childName = name ? [name, thisName].join('.') : thisName;
 
@@ -596,7 +645,7 @@ function ZodObjectComponent({
     });
 
     if (uiSchema?.ui?.Layout) {
-      const children: Record<string, React.ReactNode> = {};
+      const children: Record<string, ReactNode> = {};
       for (const { name, component } of result) {
         children[name] = component;
       }
@@ -611,8 +660,8 @@ function ZodObjectComponent({
   }
 
   // Don't create a div as the first child of the form
-  if (R.isNil(name)) {
-    return <React.Fragment>{children}</React.Fragment>;
+  if (isNil(name)) {
+    return <>{formChildren}</>;
   }
 
   const Component = uiSchema?.ui?.Component ?? components?.object ?? ObjectDefault;
@@ -622,14 +671,101 @@ function ZodObjectComponent({
       onChange={handleChange}
       value={value}
       description={zodSchemaDescription(schema) ?? uiSchema?.ui?.description}
-      {...R.omit(uiSchema?.ui ?? {}, ['Component'])}
+      {...omit(uiSchema?.ui ?? {}, ['Component'])}
     >
-      {children}
+      {formChildren}
     </Component>
   );
 }
 
-const ZodAnyComponent = React.memo(function ZodAnyComponent({
+interface IZodDiscriminatedUnionComponentProps<
+  TDiscriminator extends string,
+  TOptions extends ZodDiscriminatedUnionOption<TDiscriminator>[]
+> {
+  value: any;
+  schema: zod.ZodDiscriminatedUnion<TDiscriminator, TOptions>;
+  name?: string;
+  uiSchema?: UiPropertiesDiscriminatedUnion<zod.ZodDiscriminatedUnion<TDiscriminator, TOptions>, any>;
+}
+
+function ZodDiscriminatedUnionComponent<
+  TDiscriminator extends string,
+  TOptions extends ZodDiscriminatedUnionOption<TDiscriminator>[]
+>({ schema, name, value, uiSchema }: IZodDiscriminatedUnionComponentProps<TDiscriminator, TOptions>) {
+  // 1. generate a z.enum for the discriminator, and render a select box
+  // 2. if the discriminator has a value, render the corresponding component
+
+  const discriminator = schema._def.discriminator;
+
+  // TODO: expects a literal, but realistically it could be anything
+  // for now we'll just throw on non-literals, but we should support more types
+  const options = schema.options.map((optionSchema) => {
+    const option = optionSchema.shape[discriminator];
+    if (!isZodLiteral(option)) {
+      throw new Error('Discriminator must be a literal');
+    }
+    return option.value;
+  });
+
+  const enumForDiscriminator = z.enum(options as [any, ...any[]]) as ZodAnyEnum;
+  const nameForDiscriminator = [name, discriminator].filter(Boolean).join('.');
+  const valueForDiscriminator = value?.[discriminator];
+
+  const schemaForDiscriminatedValue = schema.options.find((optionSchema) => {
+    const option = optionSchema.shape[discriminator];
+    if (!isZodLiteral(option)) {
+      throw new Error('Discriminator must be a literal');
+    }
+
+    return valueForDiscriminator && option.value === valueForDiscriminator;
+  });
+
+  const uiSchemaForDiscriminatedValue =
+    uiSchema?.elements?.[valueForDiscriminator as keyof typeof uiSchema.elements];
+
+  return (
+    <>
+      {uiSchema?.title && <h3 className="mb-2 text-lg font-semibold">{uiSchema.title}</h3>}
+      <ZodEnumComponent
+        uiSchema={{
+          label: uiSchema?.discriminator?.label ?? nameForDiscriminator,
+          optionLabels: enumForDiscriminator._def.values.reduce(
+            (acc, value) => {
+              const optionLabel =
+                uiSchema?.elements?.[value as keyof typeof uiSchema.elements]?.ui?.optionLabel;
+
+              if (!optionLabel) {
+                return acc;
+              }
+
+              return {
+                ...acc,
+                [value]: optionLabel
+              };
+            },
+            {} as Record<string, string>
+          )
+        }}
+        schema={enumForDiscriminator}
+        name={nameForDiscriminator}
+        isRequired
+        description={discriminator}
+        value={value?.[discriminator]}
+      />
+
+      {schemaForDiscriminatedValue && (
+        <ZodAnyComponent
+          uiSchema={uiSchemaForDiscriminatedValue}
+          value={value}
+          schema={schemaForDiscriminatedValue}
+          name={name}
+        />
+      )}
+    </>
+  );
+}
+
+const ZodAnyComponent = memo(function ZodAnyComponent({
   schema,
   name,
   isRequired = true,
@@ -646,7 +782,11 @@ const ZodAnyComponent = React.memo(function ZodAnyComponent({
     return <ZodObjectComponent uiSchema={uiSchema} value={value} schema={schema} name={name} />;
   }
 
-  if (R.isNil(name)) {
+  if (isZodDiscriminatedUnion(schema)) {
+    return <ZodDiscriminatedUnionComponent uiSchema={uiSchema} schema={schema} name={name} value={value} />;
+  }
+
+  if (isNil(name)) {
     return null;
   }
 
@@ -770,26 +910,30 @@ const ZodAnyComponent = React.memo(function ZodAnyComponent({
 type ResolveComponentPropsFromSchema<Schema> = Schema extends ZodString
   ? IStringDefaultProps
   : Schema extends ZodNumber
-  ? INumberDefaultProps
-  : Schema extends ZodBoolean
-  ? IBooleanDefaultProps
-  : Schema extends ZodDate
-  ? IDateDefaultProps
-  : Schema extends ZodObject<any>
-  ? IObjectDefaultProps & UiPropertiesObjectValue<Schema>
-  : Schema extends ZodEnum<any>
-  ? IEnumDefaultProps
-  : Schema extends ZodArray<infer ItemSchema>
-  ? ItemSchema extends ZodEnum<any>
-    ? IMultiChoiceDefaultProps
-    : IArrayDefaultProps
-  : never;
+    ? INumberDefaultProps
+    : Schema extends ZodBoolean
+      ? IBooleanDefaultProps
+      : Schema extends ZodDate
+        ? IDateDefaultProps
+        : Schema extends ZodObject<any>
+          ? IObjectDefaultProps & UiPropertiesObjectValue<Schema>
+          : Schema extends ZodEnum<any>
+            ? IEnumDefaultProps
+            : Schema extends ZodArray<infer ItemSchema>
+              ? ItemSchema extends ZodEnum<any>
+                ? IMultiChoiceDefaultProps
+                : IArrayDefaultProps
+              : never;
 
 type UiPropertiesBaseNew<Schema, RootSchema extends object> = {
-  label?: React.ReactNode;
-  Component?: (props: ResolveComponentPropsFromSchema<Schema>) => JSX.Element;
+  label?: ReactNode;
+  Component?: (props: ResolveComponentPropsFromSchema<Schema>) => ReactNode;
   cond?: (data: PartialDeep<RootSchema>) => boolean;
-  description?: React.ReactNode;
+  description?: ReactNode;
+};
+
+type UiPropertiesString<RootSchema extends object> = UiPropertiesBaseNew<ZodString, RootSchema> & {
+  placeholder?: string;
 };
 
 type UiPropertiesEnum<Schema extends ZodEnum<any>, RootSchema extends object> = UiPropertiesBaseNew<
@@ -803,13 +947,13 @@ type UiPropertiesMultiChoice<Schema extends ZodEnum<any>, RootSchema extends obj
   UiPropertiesEnum<Schema, RootSchema>,
   'Component'
 > & {
-  Component?: (props: IMultiChoiceDefaultProps) => JSX.Element;
+  Component?: (props: IMultiChoiceDefaultProps) => ReactNode;
 };
 
 // These are the properties for non-leaf nodes such as array, object
 type UiPropertiesCompoundInner<RootSchema extends object> = {
-  title?: React.ReactNode;
-  description?: React.ReactNode;
+  title?: ReactNode;
+  description?: ReactNode;
   cond?: (data: PartialDeep<RootSchema>) => boolean;
 };
 
@@ -829,10 +973,10 @@ type UiPropertiesObject<Schema extends AnyZodObject, RootSchema extends object> 
   ui?: UiPropertiesCompoundInner<RootSchema> & {
     Layout?: (
       props: {
-        children: Record<keyof zod.infer<Schema>, React.ReactNode>;
+        children: Record<keyof zod.infer<Schema>, ReactNode>;
       } & UiPropertiesObjectValue<Schema>
-    ) => JSX.Element;
-    Component?: (props: ResolveComponentPropsFromSchema<Schema>) => JSX.Element;
+    ) => ReactNode;
+    Component?: (props: ResolveComponentPropsFromSchema<Schema>) => ReactNode;
   };
 };
 
@@ -848,43 +992,112 @@ type UiPropertiesArray<Schema extends ZodArray<any>, RootSchema extends object> 
         ui?: Omit<Required<UiPropertiesObject<El, RootSchema>>['ui'], 'cond'>;
       };
     }
-  : { element?: Omit<UiPropertiesBaseNew<Schema, RootSchema>, 'cond'> }) &
+  : Schema extends ZodArray<ZodString>
+    ? { element?: Omit<UiPropertiesString<RootSchema>, 'cond'> }
+    : { element?: Omit<UiPropertiesBaseNew<Schema, RootSchema>, 'cond'> }) &
   (UiPropertiesCompoundInner<RootSchema> & {
-    Component?: (props: IArrayDefaultProps) => JSX.Element;
+    Component?: (props: IArrayDefaultProps) => ReactNode;
   });
 
-type ResolveArrayUiSchema<Schema extends ZodArray<any>, RootSchema extends object> = Schema extends ZodArray<
-  infer El
->
-  ? El extends ZodEnum<any>
-    ? UiPropertiesMultiChoice<El, RootSchema>
-    : UiPropertiesArray<Schema, RootSchema>
+type ResolveArrayUiSchema<Schema extends ZodArray<any>, RootSchema extends object> =
+  Schema extends ZodArray<infer El>
+    ? El extends ZodEnum<any>
+      ? UiPropertiesMultiChoice<El, RootSchema>
+      : UiPropertiesArray<Schema, RootSchema>
+    : never;
+
+type ExtractDiscriminatedUnionLiteralValues<
+  Discriminator extends string,
+  Options extends readonly ZodDiscriminatedUnionOption<Discriminator>[]
+> = {
+  [K in keyof Options]: Options[K] extends ZodObject<infer Shape extends ZodRawShape>
+    ? Shape[Discriminator] extends ZodLiteral<infer Value>
+      ? Value
+      : never
+    : never;
+}[number];
+
+type GetDiscriminatedUnionOptionForLiteral<
+  Discriminator extends string,
+  Options extends readonly ZodDiscriminatedUnionOption<Discriminator>[],
+  Literal extends string | number | boolean
+> = Options[number] extends infer Option
+  ? Option extends ZodObject<infer Shape>
+    ? Shape[Discriminator] extends ZodLiteral<Literal>
+      ? Option
+      : never
+    : never
   : never;
+
+type UiSchemaForDiscriminatedUnionOption<
+  Discriminator extends string,
+  Option extends ZodObject<any>,
+  RootSchema extends object
+> =
+  Option extends ZodObject<infer Shape>
+    ? UiSchemaZodTypeResolver<
+        ZodObject<{
+          [K in keyof Shape as K extends Discriminator ? never : K]: Shape[K] & {
+            select?: string;
+          };
+        }>,
+        RootSchema
+      >
+    : never;
+
+type UiPropertiesDiscriminatedUnion<
+  Schema extends ZodDiscriminatedUnion<any, any>,
+  RootSchema extends object
+> =
+  Schema extends ZodDiscriminatedUnion<infer Discriminator extends string, infer Options>
+    ? {
+        title?: string;
+        discriminator?: Omit<UiPropertiesBaseNew<Schema, RootSchema>, 'cond'>;
+        elements?: {
+          [K in ExtractDiscriminatedUnionLiteralValues<
+            Discriminator,
+            Options
+          >]?: UiSchemaForDiscriminatedUnionOption<
+            Discriminator,
+            GetDiscriminatedUnionOptionForLiteral<Discriminator, Options, K>,
+            RootSchema
+          > & {
+            ui?: {
+              optionLabel?: ReactNode;
+            };
+          };
+        };
+      } & UiPropertiesCompoundInner<RootSchema> & {
+          Component?: (props: IArrayDefaultProps) => ReactNode;
+        }
+    : never;
 
 type OmitComponentProps<T extends IComponentProps<any>> = Omit<T, keyof IComponentProps<any>>;
 
-type UiSchemaZodTypeResolver<
-  Schema extends ZodFirstPartySchemaTypes,
-  RootSchema extends object
-> = Schema extends ZodEffects<infer Inner, any, any>
-  ? UiSchemaZodTypeResolver<Inner, RootSchema>
-  : Schema extends ZodOptional<infer Inner> | ZodDefault<infer Inner>
-  ? UiSchemaZodTypeResolver<Inner, RootSchema>
-  : Schema extends ZodDate
-  ? UiPropertiesBaseNew<Schema, RootSchema> & OmitComponentProps<IDateDefaultProps>
-  : Schema extends ZodBoolean
-  ? UiPropertiesBaseNew<Schema, RootSchema> & OmitComponentProps<IBooleanDefaultProps>
-  : Schema extends ZodObject<any>
-  ? UiPropertiesObject<Schema, RootSchema> & Omit<IObjectDefaultProps, 'children'>
-  : Schema extends ZodArray<any>
-  ? ResolveArrayUiSchema<Schema, RootSchema> & Omit<IArrayDefaultProps, 'onAdd' | 'onRemove' | 'children'>
-  : Schema extends ZodEnum<any>
-  ? UiPropertiesEnum<Schema, RootSchema> & Omit<OmitComponentProps<IEnumDefaultProps>, 'options'>
-  : Schema extends ZodString
-  ? UiPropertiesBaseNew<Schema, RootSchema> & OmitComponentProps<IStringDefaultProps>
-  : Schema extends ZodNumber
-  ? UiPropertiesBaseNew<Schema, RootSchema> & OmitComponentProps<INumberDefaultProps>
-  : UiPropertiesBaseNew<Schema, RootSchema>;
+type UiSchemaZodTypeResolver<Schema extends ZodFirstPartySchemaTypes, RootSchema extends object> =
+  Schema extends ZodEffects<infer Inner, any, any>
+    ? UiSchemaZodTypeResolver<Inner, RootSchema>
+    : Schema extends ZodOptional<infer Inner> | ZodDefault<infer Inner>
+      ? UiSchemaZodTypeResolver<Inner, RootSchema>
+      : Schema extends ZodDate
+        ? UiPropertiesBaseNew<Schema, RootSchema> & OmitComponentProps<IDateDefaultProps>
+        : Schema extends ZodBoolean
+          ? UiPropertiesBaseNew<Schema, RootSchema> & OmitComponentProps<IBooleanDefaultProps>
+          : Schema extends ZodObject<any>
+            ? UiPropertiesObject<Schema, RootSchema> & Omit<IObjectDefaultProps, 'children'>
+            : Schema extends ZodArray<any>
+              ? ResolveArrayUiSchema<Schema, RootSchema> &
+                  Omit<IArrayDefaultProps, 'onAdd' | 'onRemove' | 'children'>
+              : Schema extends ZodDiscriminatedUnion<any, any>
+                ? UiPropertiesDiscriminatedUnion<Schema, RootSchema> & Omit<IObjectDefaultProps, 'children'>
+                : Schema extends ZodEnum<any>
+                  ? UiPropertiesEnum<Schema, RootSchema> &
+                      Omit<OmitComponentProps<IEnumDefaultProps>, 'options'>
+                  : Schema extends ZodString
+                    ? UiPropertiesString<RootSchema> & OmitComponentProps<IStringDefaultProps>
+                    : Schema extends ZodNumber
+                      ? UiPropertiesBaseNew<Schema, RootSchema> & OmitComponentProps<INumberDefaultProps>
+                      : UiPropertiesBaseNew<Schema, RootSchema>;
 
 type UiSchema<
   Schema extends FormSchema,
@@ -894,17 +1107,36 @@ type UiSchema<
   ? {
       [K in keyof ExtractedSchema['shape']]: UiSchemaZodTypeResolver<ExtractedSchema['shape'][K], RootSchema>;
     }
-  : ExtractedSchema;
+  : ExtractedSchema extends ZodDiscriminatedUnion<infer Discriminator extends string, infer Options>
+    ? {
+        title?: string;
+        discriminator?: Omit<UiPropertiesBaseNew<Schema, RootSchema>, 'cond'>;
+        elements?: {
+          [K in ExtractDiscriminatedUnionLiteralValues<
+            Discriminator,
+            Options
+          >]?: UiSchemaForDiscriminatedUnionOption<
+            Discriminator,
+            GetDiscriminatedUnionOptionForLiteral<Discriminator, Options, K>,
+            RootSchema
+          > & {
+            ui?: {
+              optionLabel?: ReactNode;
+            };
+          };
+        };
+      }
+    : ExtractedSchema;
 
 export type FormUiSchema<Schema extends FormSchema> = Partial<UiSchema<Schema, zod.infer<Schema>>>;
 
 export type FormValue<Schema extends FormSchema> = PartialDeep<zod.infer<Schema>>;
-export type FormSchema = AnyZodObject | ZodEffects<any>;
+export type FormSchema = AnyZodObject | ZodDiscriminatedUnion<any, any> | ZodEffects<any>;
 export type FormOnChange<Schema extends FormSchema> = (
   updater: (oldValue: FormValue<Schema>) => FormValue<Schema>
 ) => void;
 
-type FormChildren = (props: { errors: zod.ZodIssue[] }) => JSX.Element;
+type FormChildren = (props: { errors: zod.ZodIssue[] }) => ReactNode;
 type FormConds = Record<string, CondResult>;
 
 export interface IFormProps<Schema extends FormSchema> {
@@ -915,20 +1147,22 @@ export interface IFormProps<Schema extends FormSchema> {
   value?: FormValue<Schema>;
   defaultValues?: zod.infer<Schema>;
   components?: {
-    string?: (props: IStringDefaultProps) => JSX.Element;
-    number?: (props: INumberDefaultProps) => JSX.Element;
-    enum?: (props: IEnumDefaultProps) => JSX.Element;
-    boolean?: (props: IBooleanDefaultProps) => JSX.Element;
-    object?: (props: IObjectDefaultProps) => JSX.Element;
-    array?: (props: IArrayDefaultProps) => JSX.Element;
-    multiChoice?: (props: IMultiChoiceDefaultProps) => JSX.Element;
-    date?: (props: IDateDefaultProps) => JSX.Element;
+    string?: (props: IStringDefaultProps) => ReactNode;
+    number?: (props: INumberDefaultProps) => ReactNode;
+    enum?: (props: IEnumDefaultProps) => ReactNode;
+    boolean?: (props: IBooleanDefaultProps) => ReactNode;
+    object?: (props: IObjectDefaultProps) => ReactNode;
+    array?: (props: IArrayDefaultProps) => ReactNode;
+    multiChoice?: (props: IMultiChoiceDefaultProps) => ReactNode;
+    date?: (props: IDateDefaultProps) => ReactNode;
   };
-  title?: React.ReactNode;
+  title?: ReactNode;
   children?: FormChildren;
   liveValidate?: boolean;
   onErrorsChange?: (errors: zod.ZodIssue[]) => void;
   className?: string;
+
+  showSubmitButton?: boolean;
 }
 
 /**
@@ -937,8 +1171,12 @@ export interface IFormProps<Schema extends FormSchema> {
  * so we need to resolve the schema to the actual
  * object schema from which we can generate the form
  * */
-function resolveObjectSchema(schema: FormSchema): AnyZodObject {
+function resolveObjectSchema(schema: FormSchema): AnyZodObject | ZodDiscriminatedUnion<any, any> {
   if (isZodObject(schema)) {
+    return schema;
+  }
+
+  if (isZodDiscriminatedUnion(schema)) {
     return schema;
   }
 
@@ -1047,7 +1285,7 @@ function validate(
   } else {
     return {
       isValid: false,
-      errors: R.groupBy(parsed.error.errors, (item) => componentNameSerialize(item.path))
+      errors: groupBy(parsed.error.errors, (item) => componentNameSerialize(item.path))
     };
   }
 }
@@ -1137,13 +1375,13 @@ function formReducer(
 }
 
 function flattenErrorsToZodIssues(errors: ErrorsMap): zod.ZodIssue[] {
-  return R.pipe(errors, R.values, R.flatten());
+  return flatten(values(errors));
 }
 
 export function Form<Schema extends FormSchema>(props: IFormProps<Schema>) {
   useUncontrolledToControlledWarning(props.value);
 
-  if (R.isNil(props.value)) {
+  if (isNil(props.value)) {
     return <UncontrolledForm {...props} />;
   }
 
@@ -1154,6 +1392,7 @@ function UncontrolledForm<Schema extends FormSchema>({
   schema,
   uiSchema,
 
+  onChange,
   onSubmit,
   value,
   defaultValues,
@@ -1164,11 +1403,13 @@ function UncontrolledForm<Schema extends FormSchema>({
   children,
   liveValidate = false,
   onErrorsChange,
-  className
-}: IFormProps<Schema>) {
-  const objectSchema = React.useMemo(() => resolveObjectSchema(schema), [schema]);
+  className,
 
-  const [state, dispatch] = React.useReducer(formReducer, undefined, () => {
+  showSubmitButton = false
+}: IFormProps<Schema>) {
+  const objectSchema = useMemo(() => resolveObjectSchema(schema), [schema]);
+
+  const [state, dispatch] = useReducer(formReducer, undefined, () => {
     const formData = defaultValues ?? formDefaultValueFromSchema(objectSchema);
     const conds = resolveNextFormConds(formData, uiSchema ?? {});
     return {
@@ -1179,7 +1420,7 @@ function UncontrolledForm<Schema extends FormSchema>({
   });
   const { formData, conds, errors } = state!;
 
-  const handleSubmit = React.useCallback(
+  const handleSubmit = useCallback(
     (value: typeof formData) => {
       const result = validate(value, schema, uiSchema ?? {});
 
@@ -1200,7 +1441,7 @@ function UncontrolledForm<Schema extends FormSchema>({
     [onSubmit, schema, uiSchema]
   );
 
-  const handleChange: OnChange = React.useCallback(
+  const handleChange: OnChange = useCallback(
     (event) => {
       dispatch({
         type: 'onChange',
@@ -1211,11 +1452,13 @@ function UncontrolledForm<Schema extends FormSchema>({
           liveValidate
         }
       });
+
+      onChange?.((oldValue) => formNextValue(oldValue, event));
     },
-    [liveValidate, schema, uiSchema]
+    [liveValidate, onChange, schema, uiSchema]
   );
 
-  const onArrayRemove = React.useCallback(
+  const onArrayRemove = useCallback(
     (path: ComponentPath) => {
       dispatch({
         type: 'arrayRemove',
@@ -1225,11 +1468,13 @@ function UncontrolledForm<Schema extends FormSchema>({
           liveValidate
         }
       });
+
+      onChange?.((oldValue) => formArrayRemove(oldValue, path));
     },
-    [liveValidate, schema]
+    [liveValidate, onChange, schema]
   );
 
-  const updateForm = React.useCallback(
+  const updateForm = useCallback(
     (updater: (old: any) => void) => {
       const newData = produce(formData, updater);
       dispatch({
@@ -1245,7 +1490,7 @@ function UncontrolledForm<Schema extends FormSchema>({
     [formData, liveValidate, schema, uiSchema]
   );
 
-  React.useEffect(() => {
+  useEffect(() => {
     onErrorsChange?.(flattenErrorsToZodIssues(errors));
   }, [errors, onErrorsChange]);
 
@@ -1273,11 +1518,9 @@ function UncontrolledForm<Schema extends FormSchema>({
         </FormContext.Provider>
       </FormContextProvider>
 
-      {children ? (
-        children({ errors: flattenErrorsToZodIssues(errors) })
-      ) : (
-        <button type="submit">Submit</button>
-      )}
+      {children
+        ? children({ errors: flattenErrorsToZodIssues(errors) })
+        : showSubmitButton && <button type="submit">Submit</button>}
     </form>
   );
 }
@@ -1295,12 +1538,12 @@ function ControlledForm<Schema extends FormSchema>({
   onSubmit,
   className
 }: IFormProps<Schema>) {
-  const [errors, setErrors] = React.useState<ErrorsMap>(STABLE_NO_ERRORS);
-  const [conds, setConds] = React.useState<FormConds>(resolveNextFormConds(value, uiSchema ?? {}));
+  const [errors, setErrors] = useState<ErrorsMap>(STABLE_NO_ERRORS);
+  const [conds, setConds] = useState<FormConds>(resolveNextFormConds(value, uiSchema ?? {}));
 
-  const objectSchema = React.useMemo(() => resolveObjectSchema(schema), [schema]);
+  const objectSchema = useMemo(() => resolveObjectSchema(schema), [schema]);
 
-  const handleValidateResult = React.useCallback(
+  const handleValidateResult = useCallback(
     (result: ReturnType<typeof validate>) => {
       if (result.isValid) {
         setErrors(STABLE_NO_ERRORS);
@@ -1313,7 +1556,7 @@ function ControlledForm<Schema extends FormSchema>({
     [onErrorsChange]
   );
 
-  const handleSubmit = React.useCallback(() => {
+  const handleSubmit = useCallback(() => {
     const result = validate(value, schema, uiSchema ?? {});
     handleValidateResult(result);
     if (result.isValid) {
@@ -1321,21 +1564,21 @@ function ControlledForm<Schema extends FormSchema>({
     }
   }, [handleValidateResult, onSubmit, schema, uiSchema, value]);
 
-  const handleChange: OnChange = React.useCallback(
+  const handleChange: OnChange = useCallback(
     (event) => {
       onChange?.((oldValue) => formNextValue(oldValue, event));
     },
     [onChange]
   );
 
-  const onArrayRemove = React.useCallback(
+  const onArrayRemove = useCallback(
     (path: ComponentPath) => {
       onChange?.((oldValue) => formArrayRemove(oldValue, path));
     },
     [onChange]
   );
 
-  const handleUpdate = React.useCallback(
+  const handleUpdate = useCallback(
     (updater: (value: any) => void) => {
       onChange?.((oldValue) => {
         const res: any = produce(oldValue, (draft: any) => {
@@ -1347,13 +1590,13 @@ function ControlledForm<Schema extends FormSchema>({
     [onChange]
   );
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (liveValidate) {
       handleValidateResult(validate(value, schema, uiSchema ?? {}));
     }
   }, [handleValidateResult, liveValidate, schema, uiSchema, value]);
 
-  React.useEffect(() => {
+  useEffect(() => {
     setConds(resolveNextFormConds(value, uiSchema ?? {}));
   }, [uiSchema, value]);
 

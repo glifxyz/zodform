@@ -1,5 +1,5 @@
-import { FormSchema } from './form';
-import { AnyZodObject, ZodEffects } from 'zod';
+import { type FormSchema } from './form';
+import { type ZodDiscriminatedUnion, type AnyZodObject, type ZodEffects } from 'zod';
 
 export type ExtractSchemaFromEffects<
   Schema extends FormSchema,
@@ -14,14 +14,16 @@ export type ExtractSchemaFromEffects<
 
 type InferInnerType<Schema extends FormSchema> = Schema extends AnyZodObject
   ? Schema
-  : Schema extends ZodEffects<infer InnerSchema extends FormSchema>
-  ? { __rec: InferInnerType<InnerSchema> }
-  : never;
+  : Schema extends ZodDiscriminatedUnion<any, any>
+    ? Schema
+    : Schema extends ZodEffects<infer InnerSchema extends FormSchema>
+      ? { __rec: InferInnerType<InnerSchema> }
+      : never;
 
 type _Recurse<T> = T extends { __rec: never }
   ? never
   : T extends { __rec: { __rec: infer U } }
-  ? { __rec: _Recurse<U> }
-  : T extends { __rec: infer U }
-  ? U
-  : T;
+    ? { __rec: _Recurse<U> }
+    : T extends { __rec: infer U }
+      ? U
+      : T;

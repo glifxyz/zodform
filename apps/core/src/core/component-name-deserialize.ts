@@ -28,10 +28,10 @@ export function componentNameDeserialize(name: string): Path {
     for (const part of name.split('.')) {
       const [key, index] = part.split('[');
       if (key) {
-        result.push(key!);
+        result.push(key);
       }
       if (index) {
-        result.push(parseInt(index!));
+        result.push(parseInt(index));
       }
     }
     return result;
@@ -41,9 +41,12 @@ export function componentNameDeserialize(name: string): Path {
     const result: Path = [];
     for (const part of name.split('[')) {
       const [key] = part.split(']');
-      const asNumber = parseInt(key!);
+      if (!key) {
+        throw new Error(`Invalid component name: ${name}`);
+      }
+      const asNumber = parseInt(key);
       if (Number.isNaN(asNumber)) {
-        result.push(key!);
+        result.push(key);
       } else {
         result.push(asNumber);
       }

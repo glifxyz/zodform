@@ -9,7 +9,7 @@ import * as path from 'path';
 export default defineConfig({
   plugins: [react(), dts()],
   test: {
-    environment: 'jsdom',
+    environment: 'happy-dom',
     globals: true,
     setupFiles: ['./src/setup-tests.ts']
   },

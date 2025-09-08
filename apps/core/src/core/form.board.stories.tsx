@@ -1,7 +1,19 @@
+import type { Meta, StoryObj } from '@storybook/react-vite';
 import { z } from 'zod';
-import { Form, FormUiSchema, useForm } from '../core/form';
 import { StringDefault } from '../components/default/string-default';
 import { parseArrayIndicesFromName } from '../core/parse-array-indices-from-name';
+import { Form, type FormUiSchema, useForm } from './form';
+
+const meta: Meta<typeof Form> = {
+  component: Form,
+  args: {},
+  argTypes: {}
+  // render: (args) => <StatefulTemplate {...args} />,
+};
+
+export default meta;
+
+type Story = StoryObj<typeof Form>;
 
 const schema = z.object({
   members: z
@@ -55,15 +67,17 @@ const uiSchema: FormUiSchema<typeof schema> = {
   }
 };
 
-export function Board() {
-  return (
-    <div
-      style={{
-        maxWidth: 500,
-        margin: 'auto'
-      }}
-    >
-      <Form onSubmit={console.log} schema={schema} uiSchema={uiSchema} />
-    </div>
-  );
-}
+export const Board: Story = {
+  render: () => {
+    return (
+      <div
+        style={{
+          maxWidth: 500,
+          margin: 'auto'
+        }}
+      >
+        <Form onSubmit={console.log} schema={schema} uiSchema={uiSchema} />
+      </div>
+    );
+  }
+};

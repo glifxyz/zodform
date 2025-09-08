@@ -1,5 +1,5 @@
-import * as zod from 'zod';
-import { AnyZodObject, ZodString } from 'zod';
+import type * as zod from 'zod';
+import { type AnyZodObject, type ZodString } from 'zod';
 import { nn } from '../utils/invariant';
 
 export const ZodTypeName = {
@@ -8,11 +8,14 @@ export const ZodTypeName = {
   ZodEnum: 'ZodEnum',
   ZodArray: 'ZodArray',
   ZodOptional: 'ZodOptional',
+  ZodNullable: 'ZodNullable',
   ZodNumber: 'ZodNumber',
   ZodDefault: 'ZodDefault',
   ZodBoolean: 'ZodBoolean',
   ZodEffects: 'ZodEffects',
-  ZodDate: 'ZodDate'
+  ZodDate: 'ZodDate',
+  ZodLiteral: 'ZodLiteral',
+  ZodDiscriminatedUnion: 'ZodDiscriminatedUnion'
 } as const;
 
 function getZodTypeNameFromSchema(schema: unknown): string | undefined {
@@ -20,11 +23,25 @@ function getZodTypeNameFromSchema(schema: unknown): string | undefined {
   return schema?._def?.typeName;
 }
 
+export function isZodDiscriminatedUnion(schema: unknown): schema is zod.ZodDiscriminatedUnion<string, any> {
+  const typeName = getZodTypeNameFromSchema(schema);
+  nn(typeName, 'Invalid schema');
+
+  return typeName === ZodTypeName.ZodDiscriminatedUnion;
+}
+
 export function isZodString(schema: unknown): schema is ZodString {
   const typeName = getZodTypeNameFromSchema(schema);
   nn(typeName, 'Invalid schema');
 
   return typeName === ZodTypeName.ZodString;
+}
+
+export function isZodLiteral(schema: unknown): schema is zod.ZodLiteral<any> {
+  const typeName = getZodTypeNameFromSchema(schema);
+  nn(typeName, 'Invalid schema');
+
+  return typeName === ZodTypeName.ZodLiteral;
 }
 
 export function isZodObject(schema: unknown): schema is AnyZodObject {
@@ -53,12 +70,20 @@ export function isZodArray(schema: unknown): schema is ZodAnyArray {
 }
 
 type ZodAnyOptional = zod.ZodOptional<any>;
+type ZodAnyNullable = zod.ZodNullable<any>;
 
 export function isZodOptional(schema: unknown): schema is ZodAnyOptional {
   const typeName = getZodTypeNameFromSchema(schema);
   nn(typeName, 'Invalid schema');
 
   return typeName === ZodTypeName.ZodOptional;
+}
+
+export function isZodNullable(schema: unknown): schema is ZodAnyNullable {
+  const typeName = getZodTypeNameFromSchema(schema);
+  nn(typeName, 'Invalid schema');
+
+  return typeName === ZodTypeName.ZodNullable;
 }
 
 export function isZodNumber(schema: unknown): schema is zod.ZodNumber {

@@ -1,6 +1,5 @@
-import React from 'react';
 import { ErrorOrDescription } from './error-or-description';
-import { IComponentProps } from '../types';
+import { type IComponentProps } from '../types';
 import { ComponentLabel } from '../component-label';
 
 export interface IEnumDefaultProps extends IComponentProps<string | undefined> {

@@ -1,8 +1,8 @@
-import * as R from 'remeda';
-import { ComponentPath, FormUiSchema } from './form';
+import { isNil } from 'lodash-es';
+import { isValidElement } from 'react';
+import type { AnyZodObject } from 'zod';
 import { componentNameDeserialize } from './component-name-deserialize';
-import React from 'react';
-import { AnyZodObject } from 'zod';
+import type { ComponentPath, FormUiSchema } from './form';
 
 function extractCondsFromUiSchema(uiSchema: FormUiSchema<AnyZodObject>) {
   const conds: Record<string, (formData: any) => boolean> = {};
@@ -12,7 +12,7 @@ function extractCondsFromUiSchema(uiSchema: FormUiSchema<AnyZodObject>) {
       const value = uiSchema[key];
 
       // Skip React elements as no cond will be found traversing those
-      if (R.isNil(value) || React.isValidElement(value)) {
+      if (isNil(value) || isValidElement(value)) {
         continue;
       }
 

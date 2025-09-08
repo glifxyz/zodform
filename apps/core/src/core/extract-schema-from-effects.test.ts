@@ -1,6 +1,6 @@
-import { describe, test, expectTypeOf } from 'vitest';
+import { describe, expectTypeOf, test } from 'vitest';
 import { z } from 'zod';
-import { ExtractSchemaFromEffects } from './extract-schema-from-effects';
+import { type ExtractSchemaFromEffects } from './extract-schema-from-effects';
 
 describe('ExtractSchemaFromEffects', function () {
   test('works', function () {
@@ -13,12 +13,12 @@ describe('ExtractSchemaFromEffects', function () {
         )
         .min(1)
     });
-    const schemaWithEffects = schema
+    const _schemaWithEffects = schema
       .refine(() => true)
       .refine(() => true)
       .refine(() => true);
 
-    type SchemaWithEffects = typeof schemaWithEffects;
+    type SchemaWithEffects = typeof _schemaWithEffects;
 
     expectTypeOf<ExtractSchemaFromEffects<SchemaWithEffects>>().toMatchTypeOf<typeof schema>();
   });

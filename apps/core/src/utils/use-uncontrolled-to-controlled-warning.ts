@@ -1,10 +1,10 @@
-import React from 'react';
-import * as R from 'remeda';
+import { isNil } from 'lodash-es';
+import { useState } from 'react';
 
 export function useUncontrolledToControlledWarning(value: unknown) {
-  const [firstValue] = React.useState(value);
+  const [firstValue] = useState(value);
 
-  if (R.isNil(firstValue) && R.isDefined(value)) {
+  if (isNil(firstValue) && value !== undefined) {
     console.warn('Component changed from controlled to uncontrolled');
   }
 }

@@ -1,10 +1,10 @@
-import React from 'react';
+import type { ReactNode } from 'react';
+import { type IComponentProps } from '../types';
 import { ErrorOrDescription } from './error-or-description';
-import { IComponentProps } from '../types';
 
 export type IMultiChoiceDefaultProps<Value extends string = string> = IComponentProps<Value[]> & {
   options: Value[];
-  optionLabels?: Record<Value, React.ReactNode>;
+  optionLabels?: Record<Value, ReactNode>;
 };
 
 export function MultiChoiceDefault({

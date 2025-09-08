@@ -1,16 +1,14 @@
-import { describe, test } from 'vitest';
-import { z, ZodType } from 'zod';
-import { FormUiSchema } from './form';
+import { type PartialDeep } from 'type-fest';
+import { describe, expect, test } from 'vitest';
+import { z, type ZodType } from 'zod';
+import { type FormUiSchema } from './form';
 import { resolveUiSchemaConds } from './resolve-ui-schema-conds';
-import { PartialDeep } from 'type-fest';
-import { ObjectMantineRows } from '../../../mantine/src/components/object-mantine';
-import { EnumMantineRadio } from '../../../mantine/src/components/enum-mantine';
 
 type CondFormData<Schema extends ZodType> = PartialDeep<z.infer<Schema>>;
 
 describe('resolveUiSchemaConds', function () {
   test('resolves nested properties', function () {
-    const schema = z.object({
+    const _schema = z.object({
       name: z.string(),
       age: z.number(),
       address: z.object({
@@ -28,16 +26,16 @@ describe('resolveUiSchemaConds', function () {
       })
     });
 
-    function falseCond(formData: CondFormData<typeof schema>) {
+    function falseCond(formData: CondFormData<typeof _schema>) {
       const age = formData.age ?? 0;
       return age < 10;
     }
-    function trueCond(formData: CondFormData<typeof schema>) {
+    function trueCond(formData: CondFormData<typeof _schema>) {
       const age = formData.age ?? 0;
       return age >= 10;
     }
 
-    const uiSchema: FormUiSchema<typeof schema> = {
+    const uiSchema: FormUiSchema<typeof _schema> = {
       name: {
         cond: falseCond
       },
@@ -99,7 +97,7 @@ describe('resolveUiSchemaConds', function () {
   });
 
   test('works', function () {
-    const schema = z.object({
+    const _schema = z.object({
       people: z
         .array(
           z.object({
@@ -119,16 +117,13 @@ describe('resolveUiSchemaConds', function () {
       paypalNumber: z.string().optional()
     });
 
-    const uiSchema: FormUiSchema<typeof schema> = {
+    const uiSchema: FormUiSchema<typeof _schema> = {
       people: {
         element: {
           ui: {
             title: 'Attendee'
           },
           fullName: {
-            ui: {
-              Component: ObjectMantineRows
-            },
             firstName: {
               label: 'First name'
             },
@@ -145,7 +140,6 @@ describe('resolveUiSchemaConds', function () {
         }
       },
       paymentMethod: {
-        Component: EnumMantineRadio,
         label: 'Payment method',
         optionLabels: {
           creditCard: '💳 Credit card',

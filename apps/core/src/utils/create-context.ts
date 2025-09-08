@@ -1,10 +1,10 @@
-import React from 'react';
+import { createContext as reactCreateContext, useContext } from 'react';
 
 export function createContext<T>(initialValue?: T) {
-  const context = React.createContext<T | undefined>(initialValue);
+  const context = reactCreateContext<T | undefined>(initialValue);
 
   const useContextConsumer = () => {
-    const c = React.useContext(context);
+    const c = useContext(context);
     if (!c) {
       throw new Error('Component must be wrapped with <Container.Provider>');
     }

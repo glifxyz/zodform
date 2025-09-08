@@ -1,11 +1,11 @@
-import { IComponentProps } from '../types';
-import React from 'react';
-import { ErrorOrDescription } from './error-or-description';
 import { ComponentLabel } from '../component-label';
+import { type IComponentProps } from '../types';
+import { ErrorOrDescription } from './error-or-description';
 
 export interface INumberDefaultProps extends IComponentProps<number | undefined> {
   min?: number;
   max?: number;
+  step?: number;
 }
 
 export function NumberDefault({

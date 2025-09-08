@@ -1,6 +1,6 @@
-import React from 'react';
+import type { ReactNode } from 'react';
 
-export function ComponentLabel({ label, children }: { label: React.ReactNode; children: React.ReactNode }) {
+export function ComponentLabel({ label, children }: { label: ReactNode; children: ReactNode }) {
   return (
     <label
       style={{

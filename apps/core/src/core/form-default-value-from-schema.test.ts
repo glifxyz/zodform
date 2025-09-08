@@ -1,4 +1,4 @@
-import { describe, test } from 'vitest';
+import { describe, test, expect } from 'vitest';
 import { z } from 'zod';
 import { formDefaultValueFromSchema } from './form-default-value-from-schema';
 

@@ -1,16 +1,16 @@
-import React from 'react';
-import { UiPropertiesCompound } from '../../core/form';
+import type { ReactNode } from 'react';
+import { type UiPropertiesCompound } from '../../core/form';
 
 export interface IArrayDefaultProps extends UiPropertiesCompound<any> {
-  children: React.ReactNode[];
-  onAdd: () => void;
+  children: ReactNode[];
+  onAdd: (newValue?: any) => void;
   onRemove: (index: number) => void;
 }
 
 export function ArrayDefault({ children, onAdd, onRemove, title, description }: IArrayDefaultProps) {
   return (
-    <React.Fragment>
-      {title}
+    <>
+      <p>{title}</p>
 
       {children.map((child, index) => (
         <div key={index}>
@@ -26,6 +26,6 @@ export function ArrayDefault({ children, onAdd, onRemove, title, description }: 
       </button>
 
       {description}
-    </React.Fragment>
+    </>
   );
 }

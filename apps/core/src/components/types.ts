@@ -1,4 +1,4 @@
-import React from 'react';
+import type { ReactNode } from 'react';
 
 export interface IComponentProps<Value> {
   value?: Value;
@@ -7,7 +7,7 @@ export interface IComponentProps<Value> {
   name: string;
   errorMessage?: string;
   isRequired?: boolean;
-  label?: React.ReactNode;
-  description?: React.ReactNode;
+  label?: ReactNode;
+  description?: ReactNode;
   autoFocus?: boolean;
 }

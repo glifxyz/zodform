@@ -1,6 +1,19 @@
+import type { Meta, StoryObj } from '@storybook/react-vite';
 import { z } from 'zod';
-import { Form, FormUiSchema, useForm } from '../core/form';
 import { EnumDefault } from '../components/default/enum-default';
+import { Form, type FormUiSchema } from '../core/form';
+import { useForm } from './form';
+
+const meta: Meta<typeof Form> = {
+  component: Form,
+  args: {},
+  argTypes: {}
+  // render: (args) => <StatefulTemplate {...args} />,
+};
+
+export default meta;
+
+type Story = StoryObj<typeof Form>;
 
 const templateSchema = z.enum([
   'No template',
@@ -48,15 +61,17 @@ const uiSchema: FormUiSchema<typeof schema> = {
   }
 };
 
-export function BusinessDescription() {
-  return (
-    <div
-      style={{
-        maxWidth: 500,
-        margin: 'auto'
-      }}
-    >
-      <Form schema={schema} uiSchema={uiSchema} />
-    </div>
-  );
-}
+export const BusinessDescription: Story = {
+  render: () => {
+    return (
+      <div
+        style={{
+          maxWidth: 500,
+          margin: 'auto'
+        }}
+      >
+        <Form schema={schema} uiSchema={uiSchema} />
+      </div>
+    );
+  }
+};

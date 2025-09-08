@@ -1,5 +1,5 @@
-import * as R from 'remeda';
-import { ZodAny, ZodDefault, ZodEffects, ZodOptional } from 'zod';
+import { merge, omit } from 'lodash-es';
+import { type ZodAny, type ZodDefault, type ZodEffects, type ZodOptional } from 'zod';
 import { isZodEffects } from './schema-type-resolvers';
 
 type ZodParentSchema = ZodOptional<any> | ZodDefault<any> | ZodEffects<any>;
@@ -20,8 +20,8 @@ export function mergeZodOuterInnerType(schema: ZodParentSchema): ZodAny {
 
   const childSchema = schema._def.innerType;
 
-  const parentSchemaDef = R.omit(schema._def, ['innerType']);
-  const resultDef = R.merge(parentSchemaDef, childSchema._def);
+  const parentSchemaDef = omit(schema._def, ['innerType']);
+  const resultDef = merge(parentSchemaDef, childSchema._def);
 
   return {
     ...childSchema,
@@ -32,8 +32,8 @@ export function mergeZodOuterInnerType(schema: ZodParentSchema): ZodAny {
 function mergeZodEffects(schema: ZodEffects<any>) {
   const childSchema = schema._def.schema;
 
-  const parentSchemaDef = R.omit(schema._def, ['schema']);
-  const resultDef = R.merge(parentSchemaDef, childSchema._def);
+  const parentSchemaDef = omit(schema._def, ['schema']);
+  const resultDef = merge(parentSchemaDef, childSchema._def);
 
   return {
     ...childSchema,

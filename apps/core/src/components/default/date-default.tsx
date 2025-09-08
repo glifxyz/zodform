@@ -1,5 +1,4 @@
-import { IComponentProps } from '../types';
-import React from 'react';
+import { type IComponentProps } from '../types';
 import { ErrorOrDescription } from './error-or-description';
 import { ComponentLabel } from '../component-label';
 
@@ -7,7 +6,7 @@ function formatDateValue(date: Date) {
   return date.toISOString().split('T')[0];
 }
 
-export interface IDateDefaultProps extends IComponentProps<Date | undefined> {}
+export type IDateDefaultProps = IComponentProps<Date | undefined>;
 
 export function DateDefault({
   value,
@@ -32,7 +31,7 @@ export function DateDefault({
 
           try {
             onChange(new Date(event.target.value));
-          } catch (error) {
+          } catch {
             onChange(undefined);
           }
         }}

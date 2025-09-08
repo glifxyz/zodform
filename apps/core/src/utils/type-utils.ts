@@ -1,8 +1,8 @@
 export type AnyFunction = (...args: any[]) => any;
 
 // Date is actually an object, but we don't want to recurse into it
-export type RequiredDeep<T> = T extends AnyFunction | Date | Array<any>
+export type RequiredDeep<T> = T extends AnyFunction | Date | Array<unknown>
   ? T
   : T extends object
-  ? { [K in keyof T]-?: RequiredDeep<T[K]> }
-  : T;
+    ? { [K in keyof T]-?: RequiredDeep<T[K]> }
+    : T;

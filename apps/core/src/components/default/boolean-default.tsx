@@ -1,7 +1,7 @@
-import { IComponentProps } from '../types';
+import { type IComponentProps } from '../types';
 import { ErrorOrDescription } from './error-or-description';
 
-export interface IBooleanDefaultProps extends IComponentProps<boolean> {}
+export type IBooleanDefaultProps = IComponentProps<boolean>;
 
 export function BooleanDefault({
   defaultValue,

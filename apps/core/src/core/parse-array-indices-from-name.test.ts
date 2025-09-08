@@ -1,3 +1,4 @@
+import { describe, test, expect } from 'vitest';
 import { parseArrayIndicesFromName } from './parse-array-indices-from-name';
 
 describe('parseArrayIndicesFromName', function () {

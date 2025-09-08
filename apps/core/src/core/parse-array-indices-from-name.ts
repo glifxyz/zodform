@@ -9,10 +9,10 @@ export function parseArrayIndicesFromName<Select extends string | undefined>(
   const parts = componentNameDeserialize(name);
 
   for (let i = 1; i < parts.length; i++) {
-    const prev = parts[i - 1]!;
-    const curr = parts[i]!;
+    const prev = parts[i - 1];
+    const curr = parts[i];
 
-    if (typeof curr === 'number') {
+    if (prev && typeof curr === 'number') {
       indices[prev] = curr;
     }
   }

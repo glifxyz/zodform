@@ -1,18 +1,20 @@
-import React from 'react';
+import type { ReactNode } from 'react';
 
-export function ErrorOrDescription({
-  description,
-  error
-}: {
-  error?: string;
-  description?: React.ReactNode;
-}) {
+export function ErrorOrDescription({ description, error }: { error?: string; description?: ReactNode }) {
   if (error) {
-    return <span style={{ color: 'red' }}>{error}</span>;
+    return (
+      <div className="rounded-md border border-error-600 bg-error-50 p-3 text-sm text-error-600">
+        <p>{error}</p>
+      </div>
+    );
   }
 
   if (description) {
-    return <span style={{ color: '#333' }}>{description}</span>;
+    return (
+      <div className="rounded-md border border-foreground bg-background p-2 text-sm text-foreground">
+        <p>{description}</p>
+      </div>
+    );
   }
 
   return null;

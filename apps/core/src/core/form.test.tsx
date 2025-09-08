@@ -1,15 +1,16 @@
-import { describe, expect, expectTypeOf, test, vi } from 'vitest';
-import { render } from '@testing-library/react';
-import { Form, FormUiSchema } from './form';
-import { z } from 'zod';
-import React from 'react';
+// @vitest-environment happy-dom
+
+import { cleanup, render } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { ObjectDefault } from '../components/default/object-default';
-import { NumberDefault } from '../components/default/number-default';
-import { MultiChoiceDefault } from '../components/default/multi-choice-default';
-import { StringDefault } from '../components/default/string-default';
+import { afterEach, describe, expect, expectTypeOf, test, vi } from 'vitest';
+import { z } from 'zod';
 import { DateDefault } from '../components/default/date-default';
-import { IEnumDefaultProps } from '../components/default/enum-default';
+import { type IEnumDefaultProps } from '../components/default/enum-default';
+import { MultiChoiceDefault } from '../components/default/multi-choice-default';
+import { NumberDefault } from '../components/default/number-default';
+import { ObjectDefault } from '../components/default/object-default';
+import { StringDefault } from '../components/default/string-default';
+import { Form, type FormUiSchema } from './form';
 
 function renderSimpleArray() {
   const user = userEvent.setup();
@@ -26,10 +27,10 @@ function renderSimpleArray() {
       components={{
         string: (props) => {
           return (
-            <React.Fragment>
+            <>
               <StringDefault {...props} />
               <span data-testid={elementTestId} />
-            </React.Fragment>
+            </>
           );
         }
       }}
@@ -67,7 +68,11 @@ function renderSimpleArray() {
   return { screen, user, addTestId, removeTestId, elementTestId };
 }
 
-describe('Form', function () {
+describe('Form', () => {
+  afterEach(() => {
+    cleanup();
+  });
+
   test('should remove the property when the text field is cleared and the schema is optional', async function () {
     const user = userEvent.setup();
     const schema = z.object({
@@ -87,6 +92,7 @@ describe('Form', function () {
             label: LABEL
           }
         }}
+        showSubmitButton
       />
     );
     await user.type(screen.getByLabelText(LABEL), NAME);
@@ -98,6 +104,39 @@ describe('Form', function () {
     expect(onSubmit).toBeCalledWith({});
   });
 
+  test('should keep the property when the text field is cleared and the schema is required', async function () {
+    const user = userEvent.setup();
+    const schema = z.object({
+      name: z.string()
+    });
+    const onSubmit = vi.fn();
+
+    const NAME = 'John doe';
+    const LABEL = 'Name';
+
+    const screen = render(
+      <Form
+        onSubmit={onSubmit}
+        schema={schema}
+        uiSchema={{
+          name: {
+            label: LABEL
+          }
+        }}
+        showSubmitButton
+      />
+    );
+    await user.type(screen.getByLabelText(LABEL), NAME);
+    expect(screen.getByLabelText(LABEL)).toHaveValue(NAME);
+
+    await user.clear(screen.getByLabelText(LABEL));
+    await user.click(screen.getByRole('button', { name: 'Submit' }));
+
+    expect(onSubmit).toBeCalledWith({
+      name: ''
+    });
+  });
+
   test('number input submits when valid', async function () {
     const user = userEvent.setup();
     const schema = z.object({
@@ -107,7 +146,7 @@ describe('Form', function () {
 
     const AGE = 18;
 
-    const screen = render(<Form onSubmit={onSubmit} schema={schema} />);
+    const screen = render(<Form onSubmit={onSubmit} schema={schema} showSubmitButton />);
     await user.type(screen.getByLabelText('age'), AGE.toString());
     await user.click(screen.getByRole('button', { name: 'Submit' }));
 
@@ -121,7 +160,7 @@ describe('Form', function () {
     });
     const onSubmit = vi.fn();
 
-    const screen = render(<Form onSubmit={onSubmit} schema={schema} />);
+    const screen = render(<Form onSubmit={onSubmit} schema={schema} showSubmitButton />);
     await user.click(screen.getByRole('button', { name: 'Submit' }));
 
     expect(onSubmit).toBeCalledWith({});
@@ -134,7 +173,7 @@ describe('Form', function () {
     });
     const onSubmit = vi.fn();
 
-    const screen = render(<Form onSubmit={onSubmit} schema={schema} />);
+    const screen = render(<Form onSubmit={onSubmit} schema={schema} showSubmitButton />);
     await user.type(screen.getByLabelText('age'), '18');
     await user.clear(screen.getByLabelText('age'));
     await user.click(screen.getByRole('button', { name: 'Submit' }));
@@ -257,10 +296,10 @@ describe('Form', function () {
               age: {
                 label: 'Name',
                 Component: (props) => (
-                  <React.Fragment>
+                  <>
                     <NumberDefault {...props} />
                     <span data-testid={ageId}>h</span>
-                  </React.Fragment>
+                  </>
                 )
               },
               ui: {
@@ -334,10 +373,10 @@ describe('Form', function () {
           fruits: {
             label: 'Fruits',
             Component: (props) => (
-              <React.Fragment>
+              <>
                 <MultiChoiceDefault {...props} />
                 <span data-testid={testId}>h</span>
-              </React.Fragment>
+              </>
             ),
             optionLabels: {
               banana: 'Banana',
@@ -388,10 +427,10 @@ describe('Form', function () {
         uiSchema={{
           date: {
             Component: (props) => (
-              <React.Fragment>
+              <>
                 <DateDefault {...props} />
                 <span data-testid={testId}>h</span>
-              </React.Fragment>
+              </>
             )
           }
         }}
@@ -582,23 +621,12 @@ describe('Form', function () {
           stuff: {
             Component: (props) => {
               expectTypeOf(props).toMatchTypeOf<IEnumDefaultProps>();
-              return <React.Fragment />;
+              return <></>;
             }
           }
         }}
       />
     );
-  });
-
-  test('renders array with default', async function () {
-    const DEFAULT = 'test';
-    const schema = z.object({
-      people: z.array(z.string()).default([DEFAULT])
-    });
-
-    const screen = render(<Form schema={schema} />);
-
-    expect(screen.getByDisplayValue(DEFAULT)).toBeInTheDocument();
   });
 
   test('enum transformed to a number ui schema type', async function () {
@@ -613,7 +641,7 @@ describe('Form', function () {
           amount: {
             Component: (props) => {
               expectTypeOf(props).toMatchTypeOf<IEnumDefaultProps>();
-              return <React.Fragment />;
+              return <></>;
             }
           }
         }}
@@ -648,14 +676,14 @@ describe('Form', function () {
   });
 
   test('ui schema gets inferred with multiple refines on the schema', function () {
-    const schema = z
+    const _schema = z
       .object({
         name: z.string()
       })
       .refine(() => true, { message: 'message' })
       .refine(() => true, { message: 'message' });
 
-    const uiSchema: FormUiSchema<typeof schema> = {
+    const uiSchema: FormUiSchema<typeof _schema> = {
       name: {
         label: 'name'
       }
