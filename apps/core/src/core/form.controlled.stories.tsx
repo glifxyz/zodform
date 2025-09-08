@@ -1,10 +1,10 @@
 /* eslint-disable react-hooks/rules-of-hooks -- false positive */
 
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { useCallback, useState } from 'react';
+import { ComponentProps, useCallback, useState } from 'react';
 import { z } from 'zod';
-import { Form, type FormUiSchema } from '../core/form';
-import { type FormOnChange, type FormValue } from './form';
+import { ControlledForm as Form, type FormUiSchema } from '../core/form';
+import { type FormValue } from './form';
 
 const meta: Meta<typeof Form> = {
   component: Form,
@@ -67,18 +67,21 @@ export const ControlledForm: Story = {
       ]
     });
 
-    const onChange: FormOnChange<typeof schema> = useCallback((updater) => {
-      setValue((prevState) => {
-        const newState = updater(prevState);
-        if (newState.age === 18) {
-          return {
-            ...newState,
-            isAccepting: true
-          };
-        }
-        return newState;
-      });
-    }, []);
+    const onChange = useCallback<NonNullable<ComponentProps<typeof Form<typeof schema>>['onChange']>>(
+      (updater) => {
+        setValue((prevState) => {
+          const newState = updater(prevState);
+          if (newState.age === 18) {
+            return {
+              ...newState,
+              isAccepting: true
+            };
+          }
+          return newState;
+        });
+      },
+      []
+    );
 
     return (
       <div
