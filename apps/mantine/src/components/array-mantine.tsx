@@ -4,7 +4,7 @@ import { Box, Button, Text } from '@mantine/core';
 export function ArrayMantine({ children, title, onAdd, onRemove }: IArrayDefaultProps) {
   return (
     <Box
-      sx={{
+      style={{
         display: 'grid',
         gap: 32
       }}
@@ -21,14 +21,14 @@ export function ArrayMantine({ children, title, onAdd, onRemove }: IArrayDefault
             }}
             color="gray"
             variant="subtle"
-            sx={{ marginTop: 16 }}
+            style={{ marginTop: 16 }}
           >
             Remove
           </Button>
         </Box>
       ))}
 
-      <Button sx={{ justifySelf: 'end' }} onClick={onAdd}>
+      <Button style={{ justifySelf: 'end' }} onClick={onAdd}>
         Add
       </Button>
     </Box>

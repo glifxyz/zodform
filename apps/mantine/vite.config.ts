@@ -19,7 +19,14 @@ export default defineConfig({
       fileName: 'index'
     },
     rollupOptions: {
-      external: ['react', 'react-dom', '@mantine/core', '@mantine/hooks', '@emotion/react', '@zodform/core']
+      external: ['react', 'react-dom', '@mantine/core', '@mantine/hooks', '@emotion/react', '@zodform/core'],
+      output: {
+        globals: {
+          '@mantine/core': 'Mantine',
+          react: 'React',
+          'react-dom': 'ReactDOM'
+        }
+      }
     }
   }
 });

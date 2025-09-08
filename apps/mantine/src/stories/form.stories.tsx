@@ -166,7 +166,7 @@ export function StudentRegistration() {
     (props: IObjectDefaultProps) => (
       <ObjectMantine {...props}>
         <Box
-          sx={{
+          style={{
             display: 'grid',
             gridTemplateColumns: '1fr 1fr',
             gap: 8,
@@ -392,7 +392,7 @@ export function ConferenceRegistration() {
     return (
       <ObjectMantine {...props}>
         <Box
-          sx={{
+          style={{
             display: 'grid',
             gap: 8
           }}

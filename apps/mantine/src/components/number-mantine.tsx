@@ -19,7 +19,7 @@ export function NumberMantine({
       required={isRequired}
       name={name}
       value={value}
-      onChange={(value) => onChange(value)}
+      onChange={(value) => onChange(typeof value === 'number' ? value : undefined)}
       description={description}
       error={errorMessage}
       label={label}
