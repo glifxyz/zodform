@@ -329,12 +329,12 @@
    */
   "projects": [
     {
-      "packageName": "@zodform/core",
+      "packageName": "@glifxyz/zodform",
       "projectFolder": "apps/core",
       "shouldPublish": true
     },
     {
-      "packageName": "@zodform/docs",
+      "packageName": "@glifxyz/zodform-docs",
       "projectFolder": "apps/docs",
       "shouldPublish": false
     }

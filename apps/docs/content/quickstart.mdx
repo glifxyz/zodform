@@ -3,7 +3,7 @@ import { Callout } from 'nextra/components'
 ## Installation
 
 ```bash
-pnpm i @zodform/core zod
+pnpm i @glifxyz/zodform zod
 ```
 
 ## Basic
@@ -11,7 +11,7 @@ pnpm i @zodform/core zod
 All you need to create a very basic form is a Zod schema.
 
 ```tsx
-import { Form } from '@zodform/core';
+import { Form } from '@glifxyz/zodform';
 import { z } from 'zod';
 
 const schema = z.object({
@@ -33,7 +33,7 @@ Since the Zod schema has a limited amount of information about how the form shou
 you will likely want to use the UI schema to further customize the form (for example, to change the label).
 
 ```tsx
-import { Form, FormUiSchema } from '@zodform/core';
+import { Form, FormUiSchema } from '@glifxyz/zodform';
 import { z } from 'zod';
 
 const schema = z.object({

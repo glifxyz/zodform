@@ -1,5 +1,5 @@
 {
-  "name": "@zodform/core",
+  "name": "@glifxyz/zodform",
   "author": "nkalpak",
   "private": false,
   "version": "0.2.0",
@@ -14,7 +14,7 @@
     "ts:watch": "tsc --watch",
     "typecheck": "tsc --noEmit",
     "storybook": "storybook dev -p 6006",
-    "new-version": "rush build --to @zodform/core && pnpm publish --access public"
+    "new-version": "rush build --to @glifxyz/zodform && pnpm publish --access public"
   },
   "dependencies": {
     "lodash-es": "^4.17.21"

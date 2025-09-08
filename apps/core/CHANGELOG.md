@@ -1,4 +1,4 @@
-# Change Log - @zodform/core
+# Change Log - @glifxyz/zodform
 
 This log was last generated on Sat, 18 Feb 2023 09:43:47 GMT and should not be manually modified.
 

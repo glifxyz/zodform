@@ -34,7 +34,7 @@ Let's say I want to create a component definition for the `string` type. To do s
 a component such as the one below:
 
 ```tsx
-import { IStringDefaultProps } from '@zodform/core';
+import { IStringDefaultProps } from '@glifxyz/zodform';
 
 function CustomString(props: IStringDefaultProps) {
   // markup...
@@ -42,7 +42,7 @@ function CustomString(props: IStringDefaultProps) {
 ```
 
 All component types have a corresponding interface which defines the props that are passed to
-the component definition. All those interfaces can be imported from `@zodform/core`, and are as follows:
+the component definition. All those interfaces can be imported from `@glifxyz/zodform`, and are as follows:
 
 - `string` - `IStringDefaultProps`
 - `number` - `INumberDefaultProps`
@@ -57,7 +57,7 @@ Once you have created your component definition, you can add it to a `components
 and pass that object to the `Form` component:
 
 ```tsx
-import { Form } from '@zodform/core';
+import { Form } from '@glifxyz/zodform';
 import { CustomString } from './custom-string';
 
 const schema = z.object({

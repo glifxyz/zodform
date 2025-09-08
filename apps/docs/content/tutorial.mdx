@@ -30,7 +30,7 @@ with all the dependencies already installed.
 First, let's install the ZodForm core dependencies:
 
 ```bash
-pnpm i @zodform/core zod
+pnpm i @glifxyz/zodform zod
 ```
 
 ## Creating the schema
@@ -135,7 +135,7 @@ const schema = z
 Now that we have the schema completed, we can render it using the `Form` component.
 
 ```tsx {1, 11}
-import { Form } from "@zodform/core";
+import { Form } from "@glifxyz/zodform";
 import { z } from "zod"
 
 const schema = z.object({
@@ -162,7 +162,7 @@ A theme is defined using the `components` prop, and the `@zodform/mantine` packa
 comes with a pre-defined `components` object that we need to pass into the `Form`.
 
 ```tsx {2, 13}
-import { Form } from "@zodform/core";
+import { Form } from "@glifxyz/zodform";
 import { components } from "@zodform/mantine";
 import { z } from "zod"
 
@@ -189,7 +189,7 @@ properties are displayed to the user, for that we need a UI schema.
 Let's start simple, with a UI schema that will specify the labels for the fields.
 
 ```tsx {1, 9, 65}
-import { Form, FormUiSchema } from "@zodform/core";
+import { Form, FormUiSchema } from "@glifxyz/zodform";
 import { components } from "@zodform/mantine";
 import { z } from "zod"
 
@@ -269,7 +269,7 @@ in the current form data and returns a boolean. If the boolean is `true`, the fi
 displayed, otherwise it will be hidden.
 
 ```tsx {38-40, 49}
-import { Form, FormUiSchema } from "@zodform/core";
+import { Form, FormUiSchema } from "@glifxyz/zodform";
 import { components } from "@zodform/mantine";
 import { z } from "zod"
 
@@ -350,7 +350,7 @@ is an enum, and by default, the Mantine theme will render enums as selects. The 
 that the payment method should be rendered as a radio group, so let's change that.
 
 ```tsx {2, 41}
-import { Form, FormUiSchema } from "@zodform/core";
+import { Form, FormUiSchema } from "@glifxyz/zodform";
 import { components, EnumMantineRadio } from "@zodform/mantine";
 import { z } from "zod"
 
@@ -426,7 +426,7 @@ property, which receives a `children` prop that is a record where the keys are t
 of the fields, and the values are the React nodes to render.
 
 ```tsx {4-5, 19-36}
-import { Form, FormUiSchema } from "@zodform/core";
+import { Form, FormUiSchema } from "@glifxyz/zodform";
 import { components, EnumMantineRadio } from "@zodform/mantine";
 import { z } from "zod"
 import React from "react";
@@ -522,7 +522,7 @@ The form will by default render a submit button. This button will be the default
 so we will probably want to override it with our own button.
 
 ```tsx {5, 22}
-import { Form, FormUiSchema } from "@zodform/core";
+import { Form, FormUiSchema } from "@glifxyz/zodform";
 import { components, EnumMantineRadio } from "@zodform/mantine";
 import { z } from "zod"
 import React from "react";

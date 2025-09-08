@@ -1,5 +1,5 @@
 {
-  "name": "@zodform/docs",
+  "name": "@glifxyz/zodform-docs",
   "version": "0.0.1",
   "dependencies": {
     "next": "15.5.0",

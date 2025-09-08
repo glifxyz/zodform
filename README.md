@@ -16,12 +16,12 @@ Once you have Rush installed, you can install the dependencies:
 rush update
 ```
 
-### Repos
+### Packages
 
-- `@zodform/core` - the logic for rendering components from a schema
-- `@zodform/docs` - the docs site
+- `@glifxyz/zodform` - the logic for rendering components from a schema
+- `@glifxyz/zodform-docs` - the docs site
 
-Most of the development is usually done in `@zodform/core`.
+Most of the development is usually done in `@glifxyz/zodform`.
 Navigate to `apps/core` and run:
 - `rushx test` to run the tests
 - `rushx stories` to run the stories
