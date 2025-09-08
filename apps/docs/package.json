@@ -10,6 +10,7 @@
     "typescript": "~5.9.2"
   },
   "scripts": {
-    "build": "next build"
+    "build": "next build",
+    "dev": "next --turbopack"
   }
 }
