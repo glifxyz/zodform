@@ -184,6 +184,7 @@ describe('Form', () => {
   test('field labels render when provided through uiSchema', async function () {
     const schema = z.object({
       age: z.number().optional(),
+      dateOfBirth: z.date().nullable(),
       name: z.string(),
       gender: z.enum(['male', 'female', 'other'] as const),
       isAccepted: z.boolean(),
@@ -203,6 +204,9 @@ describe('Form', () => {
         uiSchema={{
           age: {
             label: 'Age'
+          },
+          dateOfBirth: {
+            label: 'DOB'
           },
           name: {
             label: 'Name'
@@ -233,6 +237,7 @@ describe('Form', () => {
     );
 
     expect(screen.getByLabelText('Age')).toBeInTheDocument();
+    expect(screen.getByLabelText('DOB')).toBeInTheDocument();
     expect(screen.getByLabelText('Name')).toBeInTheDocument();
     expect(screen.getByLabelText('Gender')).toBeInTheDocument();
     expect(screen.getByLabelText('Street')).toBeInTheDocument();
@@ -541,6 +546,17 @@ describe('Form', () => {
     expect(screen.getByText(DESCRIPTION)).toBeInTheDocument();
   });
 
+  test('renders description on nullables', async function () {
+    const DESCRIPTION = 'DESCRIPTION';
+    const schema = z.object({
+      name: z.string().nullable().describe(DESCRIPTION)
+    });
+
+    const screen = render(<Form schema={schema} />);
+
+    expect(screen.getByText(DESCRIPTION)).toBeInTheDocument();
+  });
+
   test('renders description on defaults', async function () {
     const DESCRIPTION = 'DESCRIPTION';
     const schema = z.object({
@@ -577,9 +593,39 @@ describe('Form', () => {
     expect(screen.getByText('fruits')).toBeInTheDocument();
   });
 
+  test('renders multi choice with nullable', async function () {
+    const schema = z.object({
+      fruits: z.array(z.enum(['apple', 'banana', 'citrus'])).nullable()
+    });
+
+    const screen = render(<Form schema={schema} />);
+
+    expect(screen.getByText('fruits')).toBeInTheDocument();
+  });
+
   test('renders array with min when optional', async function () {
     const schema = z.object({
       people: z.array(z.string()).min(1).optional()
+    });
+
+    const TITLE = 'TITLE';
+    const screen = render(
+      <Form
+        schema={schema}
+        uiSchema={{
+          people: {
+            title: TITLE
+          }
+        }}
+      />
+    );
+
+    expect(screen.getAllByText(TITLE)).toHaveLength(1);
+  });
+
+  test('renders array with min when nullable', async function () {
+    const schema = z.object({
+      people: z.array(z.string()).min(1).nullable()
     });
 
     const TITLE = 'TITLE';
@@ -657,6 +703,32 @@ describe('Form', () => {
           street: z.string()
         })
         .optional()
+    });
+
+    const screen = render(
+      <Form
+        schema={schema}
+        uiSchema={{
+          address: {
+            ui: {
+              title: TITLE
+            }
+          }
+        }}
+      />
+    );
+
+    expect(screen.getByText(TITLE)).toBeInTheDocument();
+  });
+
+  test('renders nullable object', async function () {
+    const TITLE = 'TITLE';
+    const schema = z.object({
+      address: z
+        .object({
+          street: z.string()
+        })
+        .nullable()
     });
 
     const screen = render(

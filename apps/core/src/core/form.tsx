@@ -60,6 +60,7 @@ import {
   isZodEffects,
   isZodEnum,
   isZodLiteral,
+  isZodNullable,
   isZodNumber,
   isZodObject,
   isZodOptional,
@@ -867,7 +868,7 @@ const ZodAnyComponent = memo(function ZodAnyComponent({
     );
   }
 
-  if (isZodOptional(schema)) {
+  if (isZodOptional(schema) || isZodNullable(schema)) {
     return (
       <ZodAnyComponent
         uiSchema={uiSchema}
@@ -1088,7 +1089,7 @@ type OmitComponentProps<T extends IComponentProps<any>> = Omit<T, keyof ICompone
 type UiSchemaZodTypeResolver<Schema extends ZodFirstPartySchemaTypes, RootSchema extends object> =
   Schema extends ZodEffects<infer Inner, any, any>
     ? UiSchemaZodTypeResolver<Inner, RootSchema>
-    : Schema extends ZodOptional<infer Inner> | ZodDefault<infer Inner>
+    : Schema extends ZodOptional<infer Inner> | zod.ZodNullable<infer Inner> | ZodDefault<infer Inner>
       ? UiSchemaZodTypeResolver<Inner, RootSchema>
       : Schema extends ZodDate
         ? UiPropertiesBaseNew<Schema, RootSchema> & OmitComponentProps<IDateDefaultProps>

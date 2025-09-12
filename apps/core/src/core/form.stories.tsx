@@ -1,9 +1,8 @@
 /* eslint-disable react-hooks/rules-of-hooks -- false positive */
 
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { fn } from 'storybook/test';
-import { action } from 'storybook/actions';
 import { useState } from 'react';
+import { action } from 'storybook/actions';
 import { z } from 'zod';
 import { EnumDefault } from '../components/default/enum-default';
 import { Form, type FormUiSchema, useForm } from '../core/form';

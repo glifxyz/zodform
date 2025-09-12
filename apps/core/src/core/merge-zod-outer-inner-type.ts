@@ -1,8 +1,8 @@
 import { merge, omit } from 'lodash-es';
-import { type ZodAny, type ZodDefault, type ZodEffects, type ZodOptional } from 'zod';
+import { type ZodAny, type ZodDefault, type ZodEffects, type ZodNullable, type ZodOptional } from 'zod';
 import { isZodEffects } from './schema-type-resolvers';
 
-type ZodParentSchema = ZodOptional<any> | ZodDefault<any> | ZodEffects<any>;
+type ZodParentSchema = ZodOptional<any> | ZodNullable<any> | ZodDefault<any> | ZodEffects<any>;
 
 /**
  * Zod schemas can be leaf schemas (e.g. z.string()) or parent schemas.
