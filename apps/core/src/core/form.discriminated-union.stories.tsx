@@ -44,6 +44,7 @@ export const ColourSpaces: Story = {
           z.object({
             space: z.literal('cmyk'),
             data: z.object({
+              keyAsBlack: z.boolean().optional().default(true),
               cyan: z.number().min(0).max(100),
               magenta: z.number().min(0).max(100),
               yellow: z.number().min(0).max(100),
@@ -55,13 +56,20 @@ export const ColourSpaces: Story = {
     );
 
     const [uiSchema] = useState<FormUiSchema<typeof schema>>(() => ({
-      discriminator: {
+      space: {
         label: 'Colour space'
       },
       elements: {
         cmyk: {
           ui: {
             optionLabel: 'CMYK (Cyan, Magenta, Yellow, Black)'
+          },
+          data: {
+            black: {
+              cond(data) {
+                return data.space === 'cmyk' && data.data?.keyAsBlack === true;
+              }
+            }
           }
         },
         hsl: {

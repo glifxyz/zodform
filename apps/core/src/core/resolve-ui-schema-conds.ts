@@ -5,7 +5,7 @@ import { componentNameDeserialize } from './component-name-deserialize';
 import type { ComponentPath, FormUiSchema } from './form';
 
 function extractCondsFromUiSchema(uiSchema: FormUiSchema<AnyZodObject>) {
-  const conds: Record<string, (formData: any) => boolean> = {};
+  const conds: Record<string, boolean | ((formData: any) => boolean)> = {};
 
   function traverse(uiSchema: FormUiSchema<AnyZodObject>, path: ComponentPath = []): void {
     for (const key in uiSchema) {
@@ -23,15 +23,30 @@ function extractCondsFromUiSchema(uiSchema: FormUiSchema<AnyZodObject>) {
             conds[name] = value.ui.cond;
           }
         }
-        // If it's the object's ui property
-        if (key !== 'ui') {
-          // @ts-expect-error incorrect type, TODO
-          traverse(value, [...path, key]);
-        }
-        // If it's the array's element property
+
         if (key === 'element') {
+          // If it's the array's element property
           // @ts-expect-error incorrect type, TODO
           traverse(value, path);
+        } else if (key === 'elements') {
+          // If it's the discriminatedUnion's `elements` property
+          //
+          // In this case, we iterate over the properties of `elements`
+          // and traverse each one, but we do NOT add the element name
+          // to the path, because the element name is not part of the
+          // form data's path. The form data's path is just the array's path.
+
+          for (const elementKey in value) {
+            // @ts-expect-error incorrect type, TODO
+            const elementValue = value[elementKey];
+            if (typeof elementValue === 'object' && !isNil(elementValue) && !isValidElement(elementValue)) {
+              traverse(elementValue, path);
+            }
+          }
+        } else if (key !== 'ui') {
+          // If it's the object's ui property
+          // @ts-expect-error incorrect type, TODO
+          traverse(value, [...path, key]);
         }
       } else if (key === 'cond') {
         conds[path.join('.')] = value;
@@ -65,7 +80,8 @@ export function resolveUiSchemaConds({
 }): CondResult[] {
   const result = extractCondsFromUiSchema(uiSchema);
   return Object.entries(result).map(([path, cond]) => ({
-    cond: cond(formData),
+    // TODO: add metadata for array index etc, so array items can know their position
+    cond: typeof cond === 'boolean' ? cond : cond(formData),
     path: componentNameDeserialize(path)
   }));
 }

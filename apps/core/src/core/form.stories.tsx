@@ -40,7 +40,7 @@ export const SimpleArray: Story = {
       people: {
         element: {
           ui: {
-            Layout: ({ children, value }) => {
+            Layout: ({ children }) => {
               return (
                 <div
                   style={{
@@ -57,10 +57,11 @@ export const SimpleArray: Story = {
             }
           },
           firstName: {
-            label: 'First name'
+            // label: 'First name'
           },
           lastName: {
-            label: 'Last name'
+            // label: 'Last name'
+            cond: () => false
           }
         }
       }

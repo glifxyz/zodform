@@ -95,8 +95,63 @@ describe('resolveUiSchemaConds', function () {
       ])
     );
   });
+  test('resolves discriminated union properties', function () {
+    const _schema = z.discriminatedUnion('species', [
+      z.object({
+        species: z.literal('human'),
+        name: z.string(),
+        age: z.number()
+      }),
+      z.object({
+        species: z.literal('dinosaur'),
+        name: z.string(),
+        isAlive: z.boolean(),
+        age: z.number()
+      })
+    ]);
 
-  test('works', function () {
+    function falseCond(formData: CondFormData<typeof _schema>) {
+      const age = formData.age ?? 0;
+      return age < 10;
+    }
+
+    function trueCond(formData: CondFormData<typeof _schema>) {
+      const age = formData.age ?? 0;
+      return age >= 10;
+    }
+
+    const uiSchema: FormUiSchema<typeof _schema> = {
+      elements: {
+        human: {
+          name: {
+            cond: falseCond
+          }
+        },
+        dinosaur: {
+          isAlive: {
+            cond: trueCond
+          }
+        }
+      }
+    };
+
+    const result = resolveUiSchemaConds({ uiSchema, formData: { age: 10 } });
+
+    expect(result).toEqual(
+      expect.arrayContaining([
+        {
+          path: ['name'],
+          cond: false
+        },
+        {
+          path: ['isAlive'],
+          cond: true
+        }
+      ])
+    );
+  });
+
+  test('resolves array properties', function () {
     const _schema = z.object({
       people: z
         .array(
@@ -135,7 +190,8 @@ describe('resolveUiSchemaConds', function () {
             label: 'Email'
           },
           phoneNumber: {
-            label: 'Phone number'
+            label: 'Phone number',
+            cond: () => false
           }
         }
       },

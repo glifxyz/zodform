@@ -377,7 +377,7 @@ const ZodNumberComponentInner = memo(function ZodNumberComponentInner({
 });
 
 function ZodNumberComponent(props: IZodNumberComponentProps) {
-  const { onChange, components } = useInternalFormContext();
+  const { onChange, components, conds } = useInternalFormContext();
   const { errors, isVisible } = useComponent(props.name);
 
   if (!isVisible) {
@@ -732,6 +732,7 @@ function ZodDiscriminatedUnionComponent<
     return valueForDiscriminator && option.value === valueForDiscriminator;
   });
 
+  const uiSchemaForDiscriminatorValue = uiSchema?.[discriminator];
   const uiSchemaForDiscriminatedValue =
     uiSchema?.elements?.[valueForDiscriminator as keyof typeof uiSchema.elements];
 
@@ -740,7 +741,7 @@ function ZodDiscriminatedUnionComponent<
       {uiSchema?.title && <h3 className="mb-2 text-lg font-semibold">{uiSchema.title}</h3>}
       <ZodEnumComponent
         uiSchema={{
-          label: uiSchema?.discriminator?.label ?? nameForDiscriminator,
+          label: uiSchemaForDiscriminatorValue?.label ?? nameForDiscriminator,
           optionLabels: enumForDiscriminator._def.values.reduce(
             (acc, value) => {
               const optionLabel =
@@ -940,7 +941,7 @@ type ResolveComponentPropsFromSchema<Schema> = Schema extends ZodString
 type UiPropertiesBaseNew<Schema, RootSchema extends object> = {
   label?: ReactNode;
   Component?: (props: ResolveComponentPropsFromSchema<Schema>) => ReactNode;
-  cond?: (data: PartialDeep<RootSchema>) => boolean;
+  cond?: boolean | ((data: PartialDeep<RootSchema>) => boolean);
   description?: ReactNode;
 };
 
@@ -1064,8 +1065,12 @@ type UiPropertiesDiscriminatedUnion<
   Schema extends ZodDiscriminatedUnion<infer Discriminator extends string, infer Options>
     ? {
         title?: string;
-        discriminator?: Omit<UiPropertiesBaseNew<Schema, RootSchema>, 'cond'>;
-        elements?: {
+      } & {
+        // discriminator
+        [K in Discriminator]?: Omit<UiPropertiesBaseNew<Schema, RootSchema>, 'cond'>;
+      } & {
+        elements: {
+          // elements not including discriminator
           [K in ExtractDiscriminatedUnionLiteralValues<
             Discriminator,
             Options
@@ -1122,8 +1127,11 @@ type UiSchema<
   : ExtractedSchema extends ZodDiscriminatedUnion<infer Discriminator extends string, infer Options>
     ? {
         title?: string;
-        discriminator?: Omit<UiPropertiesBaseNew<Schema, RootSchema>, 'cond'>;
-        elements?: {
+      } & {
+        [K in Discriminator]?: Omit<UiPropertiesBaseNew<Schema, RootSchema>, 'cond'>;
+      } & {
+        elements: {
+          // discriminated union options
           [K in ExtractDiscriminatedUnionLiteralValues<
             Discriminator,
             Options
