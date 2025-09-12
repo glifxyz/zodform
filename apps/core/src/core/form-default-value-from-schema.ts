@@ -9,6 +9,7 @@ import {
   isZodEffects,
   isZodEnum,
   isZodLiteral,
+  isZodNativeEnum,
   isZodNullable,
   isZodNumber,
   isZodObject,
@@ -34,7 +35,7 @@ export function formDefaultValueFromSchema(
     if (isZodBoolean(schema)) {
       return false;
     }
-    if (isZodEnum(schema)) {
+    if (isZodEnum(schema) || isZodNativeEnum(schema)) {
       return undefined;
     }
     if (isZodOptional(schema)) {
@@ -47,7 +48,7 @@ export function formDefaultValueFromSchema(
       return undefined;
     }
     if (isZodArray(schema)) {
-      if (isZodEnum(schema._def.type)) {
+      if (isZodEnum(schema._def.type) || isZodNativeEnum(schema._def.type)) {
         return [];
       }
 

@@ -24,6 +24,7 @@ import type {
   ZodEnum,
   ZodFirstPartySchemaTypes,
   ZodLiteral,
+  ZodNativeEnum,
   ZodNumber,
   ZodObject,
   ZodOptional,
@@ -60,13 +61,15 @@ import {
   isZodEffects,
   isZodEnum,
   isZodLiteral,
+  isZodNativeEnum,
   isZodNullable,
   isZodNumber,
   isZodObject,
   isZodOptional,
   isZodString,
   type ZodAnyArray,
-  type ZodAnyEnum
+  type ZodAnyEnum,
+  ZodAnyNativeEnum
 } from './schema-type-resolvers';
 
 /**
@@ -322,6 +325,77 @@ function ZodEnumComponent(props: IZodEnumComponentProps) {
   );
 }
 
+interface IZodNativeEnumComponentProps extends IZodLeafComponentProps<ZodAnyNativeEnum, string> {
+  uiSchema?: UiPropertiesNativeEnum<any, any>;
+}
+
+const ZodNativeEnumComponentInner = memo(function ZodNativeEnumComponentInner({
+  schema,
+  name,
+  value = '',
+  isRequired,
+  uiSchema,
+
+  components,
+  onChange,
+  errorMessage
+}: IZodNativeEnumComponentProps & IZodInnerComponentProps) {
+  const handleChange = useCallback(
+    function handleChange(value = '') {
+      const isEmpty = value === '';
+
+      if (isEmpty) {
+        return onChange({
+          op: 'remove',
+          path: componentNameDeserialize(name)
+        });
+      }
+
+      return onChange({
+        op: 'update',
+        value,
+        path: componentNameDeserialize(name)
+      });
+    },
+    [name, onChange]
+  );
+
+  const Component = uiSchema?.Component ?? components?.enum ?? EnumDefault;
+
+  return (
+    <Component
+      options={Object.keys(schema.enum)}
+      optionLabels={schema.enum}
+      errorMessage={errorMessage}
+      label={uiSchema?.label ?? name}
+      name={name}
+      description={zodSchemaDescription(schema)}
+      onChange={handleChange}
+      value={value}
+      isRequired={isRequired}
+      {...getLeafPropsFromUiSchema(uiSchema)}
+    />
+  );
+});
+
+function ZodNativeEnumComponent(props: IZodNativeEnumComponentProps) {
+  const { onChange, components } = useInternalFormContext();
+  const { errors, isVisible } = useComponent(props.name);
+
+  if (!isVisible) {
+    return null;
+  }
+
+  return (
+    <ZodNativeEnumComponentInner
+      {...props}
+      components={components}
+      onChange={onChange}
+      errorMessage={head(errors)?.message}
+    />
+  );
+}
+
 interface IZodNumberComponentProps extends IZodLeafComponentProps<zod.ZodNumber, number> {
   uiSchema?: UiPropertiesBaseNew<ZodNumber, any>;
 }
@@ -517,7 +591,10 @@ interface IZodArrayComponentProps extends IZodLeafComponentProps<ZodAnyArray, an
   minLength?: number;
   maxLength?: number;
   exactLength?: number;
-  uiSchema?: UiPropertiesArray<any, any> | UiPropertiesMultiChoice<ZodEnum<any>, any>;
+  uiSchema?:
+    | UiPropertiesArray<any, any>
+    | UiPropertiesMultiChoice<ZodEnum<any>, any>
+    | UiPropertiesMultiChoice<ZodNativeEnum<any>, any>;
 }
 
 const ZodArrayMultiChoiceComponent = memo(function ZodArrayMultiChoiceComponent({
@@ -530,8 +607,16 @@ const ZodArrayMultiChoiceComponent = memo(function ZodArrayMultiChoiceComponent(
   components,
   errorMessage
 }: IZodArrayComponentProps & IZodInnerComponentProps) {
-  const uiProps = (uiSchema ?? {}) as UiPropertiesMultiChoice<ZodEnum<any>, any>;
+  const uiProps = (uiSchema ?? {}) as UiPropertiesMultiChoice<ZodEnum<any> | ZodNativeEnum<any>, any>;
   const Component = uiProps.Component ?? components?.multiChoice ?? MultiChoiceDefault;
+
+  const arraySchemaElement = schema._def.type;
+
+  const options = isZodEnum(arraySchemaElement)
+    ? arraySchemaElement.options
+    : isZodNativeEnum(arraySchemaElement)
+      ? Object.keys(arraySchemaElement.enum)
+      : [];
 
   return (
     <Component
@@ -547,7 +632,7 @@ const ZodArrayMultiChoiceComponent = memo(function ZodArrayMultiChoiceComponent(
         });
       }}
       value={value}
-      options={schema._def.type.options}
+      options={options}
     />
   );
 });
@@ -563,7 +648,7 @@ function ZodArrayComponent(props: IZodArrayComponentProps) {
     return null;
   }
 
-  if (isZodEnum(arraySchemaElement)) {
+  if (isZodEnum(arraySchemaElement) || isZodNativeEnum(arraySchemaElement)) {
     return (
       <ZodArrayMultiChoiceComponent
         {...props}
@@ -827,6 +912,18 @@ const ZodAnyComponent = memo(function ZodAnyComponent({
     );
   }
 
+  if (isZodNativeEnum(schema)) {
+    return (
+      <ZodNativeEnumComponent
+        uiSchema={uiSchema}
+        value={value}
+        schema={schema}
+        name={name}
+        isRequired={isRequired}
+      />
+    );
+  }
+
   if (isZodBoolean(schema)) {
     return (
       <ZodBooleanComponent
@@ -930,7 +1027,7 @@ type ResolveComponentPropsFromSchema<Schema> = Schema extends ZodString
         ? IDateDefaultProps
         : Schema extends ZodObject<any>
           ? IObjectDefaultProps & UiPropertiesObjectValue<Schema>
-          : Schema extends ZodEnum<any>
+          : Schema extends ZodEnum<any> | ZodNativeEnum<any>
             ? IEnumDefaultProps
             : Schema extends ZodArray<infer ItemSchema>
               ? ItemSchema extends ZodEnum<any>
@@ -956,8 +1053,22 @@ type UiPropertiesEnum<Schema extends ZodEnum<any>, RootSchema extends object> = 
   optionLabels?: Record<zod.infer<Schema>, string>;
 };
 
-type UiPropertiesMultiChoice<Schema extends ZodEnum<any>, RootSchema extends object> = Omit<
-  UiPropertiesEnum<Schema, RootSchema>,
+type UiPropertiesNativeEnum<
+  Schema extends ZodNativeEnum<any>,
+  RootSchema extends object
+> = UiPropertiesBaseNew<Schema, RootSchema> & {
+  optionLabels?: Record<keyof Schema['_def']['values'], string>;
+};
+
+type UiPropertiesMultiChoice<
+  Schema extends ZodEnum<any> | ZodNativeEnum<any>,
+  RootSchema extends object
+> = Omit<
+  Schema extends ZodEnum<any>
+    ? UiPropertiesEnum<Schema, RootSchema>
+    : Schema extends ZodNativeEnum<any>
+      ? UiPropertiesNativeEnum<Schema, RootSchema>
+      : never,
   'Component'
 > & {
   Component?: (props: IMultiChoiceDefaultProps) => ReactNode;
@@ -967,7 +1078,7 @@ type UiPropertiesMultiChoice<Schema extends ZodEnum<any>, RootSchema extends obj
 type UiPropertiesCompoundInner<RootSchema extends object> = {
   title?: ReactNode;
   description?: ReactNode;
-  cond?: (data: PartialDeep<RootSchema>) => boolean;
+  cond?: boolean | ((data: PartialDeep<RootSchema>) => boolean);
 };
 
 export type UiPropertiesCompound<RootSchema extends object> = Omit<
@@ -1014,7 +1125,7 @@ type UiPropertiesArray<Schema extends ZodArray<any>, RootSchema extends object> 
 
 type ResolveArrayUiSchema<Schema extends ZodArray<any>, RootSchema extends object> =
   Schema extends ZodArray<infer El>
-    ? El extends ZodEnum<any>
+    ? El extends ZodEnum<any> | ZodNativeEnum<any>
       ? UiPropertiesMultiChoice<El, RootSchema>
       : UiPropertiesArray<Schema, RootSchema>
     : never;
@@ -1110,11 +1221,14 @@ type UiSchemaZodTypeResolver<Schema extends ZodFirstPartySchemaTypes, RootSchema
                 : Schema extends ZodEnum<any>
                   ? UiPropertiesEnum<Schema, RootSchema> &
                       Omit<OmitComponentProps<IEnumDefaultProps>, 'options'>
-                  : Schema extends ZodString
-                    ? UiPropertiesString<RootSchema> & OmitComponentProps<IStringDefaultProps>
-                    : Schema extends ZodNumber
-                      ? UiPropertiesBaseNew<Schema, RootSchema> & OmitComponentProps<INumberDefaultProps>
-                      : UiPropertiesBaseNew<Schema, RootSchema>;
+                  : Schema extends ZodNativeEnum<any>
+                    ? UiPropertiesNativeEnum<Schema, RootSchema> &
+                        Omit<OmitComponentProps<IEnumDefaultProps>, 'options'>
+                    : Schema extends ZodString
+                      ? UiPropertiesString<RootSchema> & OmitComponentProps<IStringDefaultProps>
+                      : Schema extends ZodNumber
+                        ? UiPropertiesBaseNew<Schema, RootSchema> & OmitComponentProps<INumberDefaultProps>
+                        : UiPropertiesBaseNew<Schema, RootSchema>;
 
 type UiSchema<
   Schema extends FormSchema,

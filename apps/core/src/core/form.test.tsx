@@ -187,6 +187,7 @@ describe('Form', () => {
       dateOfBirth: z.date().nullable(),
       name: z.string(),
       gender: z.enum(['male', 'female', 'other'] as const),
+      secretOtherGender: z.nativeEnum({ yes: 'yes', no: 'no' }),
       isAccepted: z.boolean(),
       address: z.object({
         street: z.string(),
@@ -214,6 +215,9 @@ describe('Form', () => {
           gender: {
             label: 'Gender'
           },
+          secretOtherGender: {
+            label: 'Secret other gender'
+          },
           address: {
             street: {
               label: 'Street'
@@ -240,6 +244,7 @@ describe('Form', () => {
     expect(screen.getByLabelText('DOB')).toBeInTheDocument();
     expect(screen.getByLabelText('Name')).toBeInTheDocument();
     expect(screen.getByLabelText('Gender')).toBeInTheDocument();
+    expect(screen.getByLabelText('Secret other gender')).toBeInTheDocument();
     expect(screen.getByLabelText('Street')).toBeInTheDocument();
     expect(screen.getByLabelText('City')).toBeInTheDocument();
     expect(screen.getByLabelText('Hobby')).toBeInTheDocument();
@@ -376,6 +381,41 @@ describe('Form', () => {
         schema={schema}
         uiSchema={{
           fruits: {
+            label: 'Fruits',
+            Component: (props) => (
+              <>
+                <MultiChoiceDefault {...props} />
+                <span data-testid={testId}>h</span>
+              </>
+            ),
+            optionLabels: {
+              banana: 'Banana',
+              apple: 'Apple',
+              citrus: 'Citrus'
+            }
+          }
+        }}
+      />
+    );
+
+    expect(screen.getByText('Banana')).toBeInTheDocument();
+    expect(screen.getByText('Apple')).toBeInTheDocument();
+    expect(screen.getByText('Citrus')).toBeInTheDocument();
+    expect(screen.getByText('Fruits')).toBeInTheDocument();
+    expect(screen.getByTestId(testId)).toBeInTheDocument();
+  });
+
+  test('array native enum element', async function () {
+    const schema = z.object({
+      fruitsNativeEnum: z.array(z.nativeEnum({ apple: 'Apple', banana: 'Banana', citrus: 'Citrus' } as const))
+    });
+    const testId = 'test-id';
+
+    const screen = render(
+      <Form
+        schema={schema}
+        uiSchema={{
+          fruitsNativeEnum: {
             label: 'Fruits',
             Component: (props) => (
               <>
@@ -658,6 +698,26 @@ describe('Form', () => {
     const things: [string, ...string[]] = ['a', 'b', 'c'];
     const schema = z.object({
       stuff: z.enum(things)
+    });
+
+    render(
+      <Form
+        schema={schema}
+        uiSchema={{
+          stuff: {
+            Component: (props) => {
+              expectTypeOf(props).toMatchTypeOf<IEnumDefaultProps>();
+              return <></>;
+            }
+          }
+        }}
+      />
+    );
+  });
+  test('string native enum ui schema type', async function () {
+    const things: Record<string, string> = { a: 'A', b: 'B', c: 'C' };
+    const schema = z.object({
+      stuff: z.nativeEnum(things)
     });
 
     render(

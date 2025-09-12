@@ -96,6 +96,65 @@ export const SimpleArray: Story = {
   }
 };
 
+export const EnumVsNativeEnum: Story = {
+  render: () => {
+    const [liveValidate, setLiveValidate] = useState(false);
+
+    const [schema] = useState(() =>
+      z.object({
+        someEnum: z.enum(['option1', 'option2', 'option3'] as const),
+        someNativeEnum: z.nativeEnum({ A: 'A', B: 'B', C: 'C' })
+      })
+    );
+
+    const [uiSchema] = useState<FormUiSchema<typeof schema>>(() => ({
+      someEnum: {
+        label: 'Some enum',
+        optionLabels: {
+          option1: 'Option 1',
+          option2: 'Option 2',
+          option3: 'Option 3'
+        }
+      },
+      someNativeEnum: {
+        label: 'Some native enum',
+        optionLabels: {
+          A: 'Option A',
+          B: 'Option B',
+          C: 'Option C'
+        }
+      }
+    }));
+
+    return (
+      <div
+        style={{
+          maxWidth: 500,
+          margin: 'auto'
+        }}
+      >
+        <Form
+          liveValidate={liveValidate}
+          schema={schema}
+          uiSchema={uiSchema}
+          onErrorsChange={(errors) => {
+            const isInvalid = Object.keys(errors).length > 0;
+            setLiveValidate(isInvalid);
+
+            action('onErrorsChange')(errors);
+          }}
+          onSubmit={(values) => action('submit')(values)}
+          onChange={(change) => action('change')(change)}
+        >
+          {() => {
+            return <button type="submit">Submit</button>;
+          }}
+        </Form>
+      </div>
+    );
+  }
+};
+
 export const ConferenceRegistration: Story = {
   render: () => {
     const [liveValidate, setLiveValidate] = useState(false);

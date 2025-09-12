@@ -29,6 +29,16 @@ describe('formDefaultValueFromSchema', function () {
     });
   });
 
+  describe('nativeEnum', function () {
+    test('should default to default value', function () {
+      const schema = z.object({
+        color: z.nativeEnum({ red: 'Red', green: 'Green', blue: 'Blue' }).default('green')
+      });
+      const result = formDefaultValueFromSchema(schema);
+      expect(result).toEqual({ color: 'green' });
+    });
+  });
+
   describe('boolean', function () {
     test('should default to false', function () {
       const schema = z.object({ isHuman: z.boolean() });
@@ -96,6 +106,14 @@ describe('formDefaultValueFromSchema', function () {
   test('array of enums should default to empty array even when it has a min', function () {
     const schema = z.object({
       hobbies: z.array(z.enum(['red', 'green', 'blue'])).min(1)
+    });
+    const result = formDefaultValueFromSchema(schema);
+    expect(result).toEqual({ hobbies: [] });
+  });
+
+  test('array of nativeEnums should default to empty array even when it has a min', function () {
+    const schema = z.object({
+      hobbies: z.array(z.nativeEnum({ red: 'Red', green: 'Green', blue: 'Blue' })).min(1)
     });
     const result = formDefaultValueFromSchema(schema);
     expect(result).toEqual({ hobbies: [] });

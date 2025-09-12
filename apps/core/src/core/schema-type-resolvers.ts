@@ -6,6 +6,7 @@ export const ZodTypeName = {
   ZodString: 'ZodString',
   ZodObject: 'ZodObject',
   ZodEnum: 'ZodEnum',
+  ZodNativeEnum: 'ZodNativeEnum',
   ZodArray: 'ZodArray',
   ZodOptional: 'ZodOptional',
   ZodNullable: 'ZodNullable',
@@ -58,6 +59,15 @@ export function isZodEnum(schema: unknown): schema is ZodAnyEnum {
   nn(typeName, 'Invalid schema');
 
   return typeName === ZodTypeName.ZodEnum;
+}
+
+export type ZodAnyNativeEnum = zod.ZodNativeEnum<any>;
+
+export function isZodNativeEnum(schema: unknown): schema is ZodAnyNativeEnum {
+  const typeName = getZodTypeNameFromSchema(schema);
+  nn(typeName, 'Invalid schema');
+
+  return typeName === ZodTypeName.ZodNativeEnum;
 }
 
 export type ZodAnyArray = zod.ZodArray<any>;
