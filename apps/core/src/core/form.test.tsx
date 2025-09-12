@@ -608,11 +608,26 @@ describe('Form', () => {
     expect(screen.getByText(DESCRIPTION)).toBeInTheDocument();
   });
 
-  test('renders leaf with an effect', async function () {
+  test('renders leaf with an effect [enum]', async function () {
     const DESCRIPTION = 'DESCRIPTION';
     const schema = z.object({
       amount: z
         .enum(['1', '2', '3'] as const)
+        .transform((x) => parseInt(x))
+        .describe(DESCRIPTION)
+    });
+
+    const screen = render(<Form schema={schema} />);
+
+    expect(screen.getByText(DESCRIPTION)).toBeInTheDocument();
+    expect(screen.getByText('amount')).toBeInTheDocument();
+  });
+
+  test('renders leaf with an effect [nativeEnum]', async function () {
+    const DESCRIPTION = 'DESCRIPTION';
+    const schema = z.object({
+      amount: z
+        .nativeEnum({ '1': '1', '2': '2', '3': '3' } as const)
         .transform((x) => parseInt(x))
         .describe(DESCRIPTION)
     });

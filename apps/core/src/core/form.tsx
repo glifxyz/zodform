@@ -364,8 +364,8 @@ const ZodNativeEnumComponentInner = memo(function ZodNativeEnumComponentInner({
 
   return (
     <Component
-      options={Object.keys(schema.enum)}
-      optionLabels={schema.enum}
+      options={Object.keys(schema._def.values)}
+      optionLabels={schema._def.values}
       errorMessage={errorMessage}
       label={uiSchema?.label ?? name}
       name={name}

@@ -100,10 +100,23 @@ export const EnumVsNativeEnum: Story = {
   render: () => {
     const [liveValidate, setLiveValidate] = useState(false);
 
+    enum SomeNativeEnumAsEnum {
+      a = 'A1',
+      b = 'B2',
+      c = 'C2'
+    }
+
+    const SomeNativeEnumAsObject = {
+      a: 'A',
+      b: 'B',
+      c: 'C'
+    } as const;
+
     const [schema] = useState(() =>
       z.object({
         someEnum: z.enum(['option1', 'option2', 'option3'] as const),
-        someNativeEnum: z.nativeEnum({ A: 'A', B: 'B', C: 'C' })
+        someNativeEnumAsObject: z.nativeEnum(SomeNativeEnumAsObject),
+        someNativeEnumAsEnum: z.nativeEnum(SomeNativeEnumAsEnum)
       })
     );
 
@@ -116,12 +129,94 @@ export const EnumVsNativeEnum: Story = {
           option3: 'Option 3'
         }
       },
-      someNativeEnum: {
-        label: 'Some native enum',
+      someNativeEnumAsObject: {
+        label: 'Some native enum as object',
         optionLabels: {
-          A: 'Option A',
-          B: 'Option B',
-          C: 'Option C'
+          a: 'Option A',
+          b: 'Option B',
+          c: 'Option C'
+        }
+      },
+      someNativeEnumAsEnum: {
+        label: 'Some native enum as enum'
+      }
+    }));
+
+    return (
+      <div
+        style={{
+          maxWidth: 500,
+          margin: 'auto'
+        }}
+      >
+        <Form
+          liveValidate={liveValidate}
+          schema={schema}
+          uiSchema={uiSchema}
+          defaultValues={{
+            someEnum: 'option2',
+            someNativeEnumAsObject: SomeNativeEnumAsObject.b,
+            someNativeEnumAsEnum: SomeNativeEnumAsEnum.a
+          }}
+          onErrorsChange={(errors) => {
+            const isInvalid = Object.keys(errors).length > 0;
+            setLiveValidate(isInvalid);
+
+            action('onErrorsChange')(errors);
+          }}
+          onSubmit={(values) => action('submit')(values)}
+          onChange={(change) => action('change')(change)}
+        >
+          {() => {
+            return <button type="submit">Submit</button>;
+          }}
+        </Form>
+      </div>
+    );
+  }
+};
+
+export const DiscriminatedUnionWithNativeEnum: Story = {
+  render: () => {
+    const [liveValidate, setLiveValidate] = useState(false);
+
+    const [schema] = useState(() =>
+      z.discriminatedUnion('thing', [
+        z.object({
+          thing: z.literal('a'),
+          someNativeEnum: z.nativeEnum({ a: 'A', b: 'B', c: 'C' })
+        }),
+        z.object({
+          thing: z.literal('b'),
+          someEnum: z.enum(['option1', 'option2', 'option3'] as const)
+        })
+      ])
+    );
+
+    const [uiSchema] = useState<FormUiSchema<typeof schema>>(() => ({
+      thing: {
+        label: 'Thing'
+      },
+      elements: {
+        a: {
+          someNativeEnum: {
+            label: 'Some native enum',
+            optionLabels: {
+              a: 'Option A',
+              b: 'Option B',
+              c: 'Option C'
+            }
+          }
+        },
+        b: {
+          someEnum: {
+            label: 'Some enum',
+            optionLabels: {
+              option1: 'Option 1',
+              option2: 'Option 2',
+              option3: 'Option 3'
+            }
+          }
         }
       }
     }));
