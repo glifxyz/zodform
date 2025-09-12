@@ -19,7 +19,7 @@ function extractCondsFromUiSchema(uiSchema: FormUiSchema<AnyZodObject>) {
       if (typeof value === 'object') {
         if ('ui' in value) {
           const name = [...path, key].join('.');
-          if (value.ui?.cond) {
+          if (value.ui && 'cond' in value.ui && value.ui.cond) {
             conds[name] = value.ui.cond;
           }
         }
